@@ -45,7 +45,7 @@ def calc_DCF_LC(LC1, LC2, t_min, t_max, delta_t):
 		
 	t_LC1 = LC1[0]
 	f_LC1 = LC1[1]
-
+	
 	t_LC2 = LC2[0]
 	f_LC2 = LC2[1]
 
