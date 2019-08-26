@@ -49,17 +49,17 @@ def calc_LCCF_LC(LC1, LC2, t_min, t_max, delta_t):
 	f_LC2 = LC2[1]
 
 	t_dcf = np.arange(t_min, t_max, delta_t)
-	DCFs = []
+	LCCFs = []
 
 	for i in range(N_LC_simulated):
-		dcfi = []
+		lccfi = []
 		
 		for time in t_dcf:
 
-			dcfi.append((LCCF(time, t_LC1[i], t_LC2[i], f_LC1[i], f_LC2[i], delta_t)))
+			lccfi.append((LCCF(time, t_LC1[i], t_LC2[i], f_LC1[i], f_LC2[i], delta_t)))
 
-		DCFs.append(dcfi)
+		LCCFs.append(lccfi)
 		print ('LCCF of LC pair ', i+1, ' out of' , N_LC_simulated, ' computed!')
 	
-	return np.array(DCFs)
+	return np.array(LCCFs)
 
