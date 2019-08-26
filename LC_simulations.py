@@ -40,10 +40,11 @@ class lightcurve:
 		self.data = data
 		self.mjd_data = data[:,0]
 		self.data_time_span = round(max(self.mjd_data)-min(self.mjd_data))
+		self.mean_LC_data = np.mean(data[:,1])
+		self.std_LC_data = np.std(data[:,1])
 
-	
 
-	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision):
+	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, normalize_sim_LC=False):
 		
 		#check int value for N_LC_sim_length_mult
 		if type(N_LC_sim_length_mult) != int:
@@ -63,18 +64,26 @@ class lightcurve:
 			fourier_coeffs = gen_fourier_coeff(freq, PSD_index)
 
 			#inverse fourier
-			LC = ifft(fourier_coeffs).real
+			full_LC = ifft(fourier_coeffs).real
 
-			if N_LC_sim_length_mult == 1 :#cut LC to desired length
+			#normalize LC
+			if normalize_sim_LC==True:
+				full_LC = full_LC-np.mean(full_LC)
+				full_LC = (full_LC/np.std(full_LC))*self.std_LC_data
+				full_LC += self.mean_LC_data
+				
+			#cut LC to desired length
+			if N_LC_sim_length_mult == 1 :
 
-				LC_sim_flux.append(LC)
+				LC_sim_flux.append(full_LC)
 			
 			else :
 
 				cut = random.randint(0, LC_sim_length/2)
 
-				LC = LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)]
-				LC_sim_flux.append(LC)
+				full_LC = full_LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)]
+				LC_sim_flux.append(full_LC)
+			
 
 			print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
 		
@@ -101,12 +110,12 @@ class lightcurve:
 
 
 
-	def simulate_LC_sampled(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision):
+	def simulate_LC_sampled(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, normalize_sim_LC=False):
 
 		LC_sim_flux_sampled = []
 		T_bins_sim_LC_sampled = []
 
-		LC_sim_flux = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision)
+		LC_sim_flux = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, normalize_sim_LC)
 
 		sim_LC_Npoints = len(LC_sim_flux[0])
 		sampling_pattern = self.produce_sampling_pattern(LC_sim_time_precision, sim_LC_Npoints)
