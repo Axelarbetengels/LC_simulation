@@ -45,6 +45,7 @@ class lightcurve:
 
 
 	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, normalize_sim_LC=False):
+		#Following Timmer & Koenig, 1995, Astronomy & Astrophysics, 300, 707
 		
 		#check int value for N_LC_sim_length_mult
 		if type(N_LC_sim_length_mult) != int:
@@ -71,7 +72,10 @@ class lightcurve:
 				full_LC = full_LC-np.mean(full_LC)
 				full_LC = (full_LC/np.std(full_LC))*self.std_LC_data
 				full_LC += self.mean_LC_data
-				
+			
+			#bin LC to desired bin width
+			#full_LC = np.histogram(full_LC, bins=)
+
 			#cut LC to desired length
 			if N_LC_sim_length_mult == 1 :
 
@@ -92,9 +96,10 @@ class lightcurve:
 
 
 
-	def produce_sampling_pattern(self, LC_sim_time_precision, sim_LC_Npoints):
+	def produce_sampling_pattern(self, LC_sim_time_precision):
 
 		mjd_data = np.sort(self.mjd_data)
+		sim_LC_Npoints = self.data_time_span / LC_sim_time_precision
 
 		sim_T_bins = np.linspace(min(mjd_data), max(mjd_data), sim_LC_Npoints)
 
@@ -118,7 +123,7 @@ class lightcurve:
 		LC_sim_flux = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, normalize_sim_LC)
 
 		sim_LC_Npoints = len(LC_sim_flux[0])
-		sampling_pattern = self.produce_sampling_pattern(LC_sim_time_precision, sim_LC_Npoints)
+		sampling_pattern = self.produce_sampling_pattern(LC_sim_time_precision)
 
 		for i in range(N_sim_LC):
 
