@@ -1,6 +1,6 @@
 import numpy as np
 
-def LCCF(t, mjd_1, mjd_2, flux_1, flux_2, delta_t=2):
+def LCCF(t, mjd_1, mjd_2, flux_1, flux_2, delta_t):
 
 
 	a = []
