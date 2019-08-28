@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import random
 import cmath
 from numpy.fft import fft, ifft
-
+from scipy import stats
 
 
 def gen_random_numbers_normaldistr(N_numbers):
@@ -44,14 +44,15 @@ class lightcurve:
 		self.std_LC_data = np.std(data[:,1])
 
 
-	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, normalize_sim_LC=False):
+	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False):
 		#Following Timmer & Koenig, 1995, Astronomy & Astrophysics, 300, 707
-		
+		#everything is in unit of [day]
+
 		#check int value for N_LC_sim_length_mult
 		if type(N_LC_sim_length_mult) != int:
 			print ('Please enter a integer value for N_LC_sim_length_mult')
 			return (0)
-		
+
 		LC_sim_length = LC_sim_time_span / LC_sim_time_precision
 		LC_sim_length *= N_LC_sim_length_mult
 
@@ -73,20 +74,31 @@ class lightcurve:
 				full_LC = (full_LC/np.std(full_LC))*self.std_LC_data
 				full_LC += self.mean_LC_data
 			
-			#bin LC to desired bin width
-			#full_LC = np.histogram(full_LC, bins=)
 
 			#cut LC to desired length
 			if N_LC_sim_length_mult == 1 :
 
-				LC_sim_flux.append(full_LC)
+				#bin LC to desired bin width
+				sim_t_slices = np.arange(0, len(full_LC), 1) * LC_sim_time_precision
+
+				full_LC_binned = stats.binned_statistic(sim_t_slices, full_LC, 'mean', bins=(len(full_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+
+				#append LC to LC list
+				LC_sim_flux.append(full_LC_binned)
 			
 			else :
 
 				cut = random.randint(0, LC_sim_length/2)
 
 				full_LC = full_LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)]
-				LC_sim_flux.append(full_LC)
+
+				#bin LC to desired bin width
+				sim_t_slices = np.arange(0, len(full_LC), 1) * LC_sim_time_precision
+
+				full_LC_binned = stats.binned_statistic(sim_t_slices, full_LC, 'mean', bins=(len(full_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+				
+				#append LC to LC list
+				LC_sim_flux.append(full_LC_binned)
 			
 
 			print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
@@ -96,10 +108,10 @@ class lightcurve:
 
 
 
-	def produce_sampling_pattern(self, LC_sim_time_precision):
+	def produce_sampling_pattern(self, LC_output_t_bin):
 
 		mjd_data = np.sort(self.mjd_data)
-		sim_LC_Npoints = self.data_time_span / LC_sim_time_precision
+		sim_LC_Npoints = self.data_time_span / LC_output_t_bin
 
 		sim_T_bins = np.linspace(min(mjd_data), max(mjd_data), sim_LC_Npoints)
 
@@ -108,22 +120,22 @@ class lightcurve:
 		for t_sim in range(len(sim_T_bins)):
 			a = (sim_T_bins[t_sim]-mjd_data)
 				
-			if min(abs(a)) < LC_sim_time_precision/2 :
+			if min(abs(a)) < LC_output_t_bin/2 :
 				pattern[t_sim] = True
 
 		return pattern
 
 
 
-	def simulate_LC_sampled(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, normalize_sim_LC=False):
+	def simulate_LC_sampled(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False):
 
 		LC_sim_flux_sampled = []
 		T_bins_sim_LC_sampled = []
 
-		LC_sim_flux = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, normalize_sim_LC)
+		LC_sim_flux = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC)
 
 		sim_LC_Npoints = len(LC_sim_flux[0])
-		sampling_pattern = self.produce_sampling_pattern(LC_sim_time_precision)
+		sampling_pattern = self.produce_sampling_pattern(LC_output_t_bin)
 
 		for i in range(N_sim_LC):
 
