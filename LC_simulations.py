@@ -16,7 +16,7 @@ def gen_random_numbers_normaldistr(N_numbers):
 	return s
 
 
-def gen_fourier_coeff(freq, PSD_index, sum_flux=1e3):
+def gen_fourier_coeff(freq, PSD_index, sum_flux=1e0):
 
 		factor = (1/freq)**(PSD_index/2)
 
@@ -54,7 +54,33 @@ class lightcurve:
 			self.std_LC_data = np.std(data[:,1])
 
 
-	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False):
+
+	def produce_sampling_pattern(self, LC_output_t_bin):
+
+		if not len(self.data):
+			print ('An observed lightcurve is needed to compute an sampled light curve')
+			return 0
+
+
+		mjd_data = np.sort(self.mjd_data)
+
+		sim_T_bins = np.linspace(min(mjd_data), max(mjd_data), self.sim_LC_Npoints)
+
+		pattern = np.full(len(sim_T_bins), False, dtype=bool)
+
+		for t_sim in range(len(sim_T_bins)):
+			a = (sim_T_bins[t_sim]-mjd_data)
+				
+			if min(abs(a)) < LC_output_t_bin/2 :
+				pattern[t_sim] = True
+
+		return pattern
+
+
+
+
+	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+		
 		#Following Timmer & Koenig, 1995, Astronomy & Astrophysics, 300, 707
 		#everything is in unit of [day]
 
@@ -101,64 +127,83 @@ class lightcurve:
 				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
 
 
+			self.sim_LC_Npoints = len(cut_LC_binned)
 
-			#normalize LC
-			if normalize_sim_LC==True:
-				cut_LC_binned = cut_LC_binned-np.mean(cut_LC_binned)
-				cut_LC_binned = (cut_LC_binned/np.std(cut_LC_binned))*self.std_LC_data
-				cut_LC_binned += self.mean_LC_data
+			
+			
+			if not len(self.data):
+				#simply add non-sampled, non normalized LC if no obs. data is given
+				LC_sim_flux.append(cut_LC_binned)	
+
+				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
 				
-				self.norm_factor = self.std_LC_data/np.std(cut_LC_binned)
-
-
- 
-			#append LC to LC list
-			LC_sim_flux.append(cut_LC_binned)	
-
-			print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
-		
-		self.sim_LC_Npoints = len(LC_sim_flux[0])
-
-		return LC_sim_flux
+				if normalize_sim_LC==True:
+					print ('An observed lightcurve is needed to normalize the simulated light curve')
+					return 0
 
 
 
-	def produce_sampling_pattern(self, LC_output_t_bin):
+			else:
+				#sample and normalize LC
 
-		mjd_data = np.sort(self.mjd_data)
+				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(cut_LC_binned)**2 )
 
-		sim_T_bins = np.linspace(min(mjd_data), max(mjd_data), self.sim_LC_Npoints)
-
-		pattern = np.full(len(sim_T_bins), False, dtype=bool)
-
-		for t_sim in range(len(sim_T_bins)):
-			a = (sim_T_bins[t_sim]-mjd_data)
 				
-			if min(abs(a)) < LC_output_t_bin/2 :
-				pattern[t_sim] = True
+				if sample_sim_LC==False:
+					
+					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), max(self.mjd_data), self.sim_LC_Npoints)
+					LC_sim_flux_sampled = cut_LC_binned
 
-		return pattern
+
+				if sample_sim_LC==True:
+					
+					#sample LC
+					sampling_pattern = self.produce_sampling_pattern(LC_output_t_bin)
+
+					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), max(self.mjd_data), self.sim_LC_Npoints)[sampling_pattern]
+					LC_sim_flux_sampled = cut_LC_binned[sampling_pattern]
+
+	
+				#normalize LC
+				if normalize_sim_LC==True:
+
+					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(cut_LC_binned))*self.norm_factor + self.mean_LC_data
+	 			
+				
+
+				#append LC to LC list
+				LC_sim_flux.append(LC_sim_flux_sampled)	
+
+				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
+			
+			
+			
+
+
+		if not len(self.data):
+			return LC_sim_flux
+
+		else:	
+			return (T_bins_sim_LC_sampled, LC_sim_flux)
+			
 
 
 
-	def simulate_LC_sampled(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False):
+
+
+
+
+	def simulate_realistic_LC(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
 
 		if not len(self.data):
 			print ('An observed lightcurve is needed to compute an sampled light curve')
 			return 0
 
-
 		LC_sim_flux_sampled = []
 		T_bins_sim_LC_sampled = []
 
-		LC_sim_flux = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC)
+		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
 
-		sampling_pattern = self.produce_sampling_pattern(LC_output_t_bin)
-
-		for i in range(N_sim_LC):
-
-			T_bins_sim_LC_sampled.append(np.linspace(min(self.mjd_data), max(self.mjd_data), self.sim_LC_Npoints)[sampling_pattern])
-			LC_sim_flux_sampled.append((LC_sim_flux[i])[sampling_pattern])
 
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
