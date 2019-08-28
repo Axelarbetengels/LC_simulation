@@ -79,8 +79,7 @@ class lightcurve:
 
 
 
-	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult,
-		LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
 
 		#Following Timmer & Koenig, 1995, Astronomy & Astrophysics, 300, 707
 		#everything is in unit of [day]
@@ -114,10 +113,7 @@ class lightcurve:
 				#bin LC to desired bin width
 				sim_t_slices = np.arange(0, len(full_LC), 1) * LC_sim_time_precision
 
-				cut_LC_binned = stats.binned_statistic(sim_t_slices, 
-					cut_LC, 
-					'mean', 
-					bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
 
 			else :
 
@@ -128,10 +124,7 @@ class lightcurve:
 				#bin LC to desired bin width
 				sim_t_slices = np.arange(0, len(cut_LC), 1) * LC_sim_time_precision
 
-				cut_LC_binned = stats.binned_statistic(sim_t_slices,
-					cut_LC, 
-					'mean', 
-					bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
 
 
 			self.sim_LC_Npoints = len(cut_LC_binned)
@@ -158,9 +151,7 @@ class lightcurve:
 				
 				if sample_sim_LC==False:
 					
-					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), 
-						min(self.mjd_data)+self.data_time_span, 
-						self.sim_LC_Npoints)
+					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+self.data_time_span, self.sim_LC_Npoints)
 
 					LC_sim_flux_sampled = cut_LC_binned
 
@@ -170,9 +161,7 @@ class lightcurve:
 					#sample LC
 					sampling_pattern = self.produce_sampling_pattern(LC_output_t_bin)
 
-					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), 
-						min(self.mjd_data)+self.data_time_span, 
-						self.sim_LC_Npoints)[sampling_pattern]
+					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+self.data_time_span, self.sim_LC_Npoints)[sampling_pattern]
 					
 					LC_sim_flux_sampled = cut_LC_binned[sampling_pattern]
 
@@ -217,9 +206,7 @@ class lightcurve:
 		LC_sim_flux_sampled = []
 		T_bins_sim_LC_sampled = []
 
-		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, 
-			                                                          LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, 
-                                                                      sample_sim_LC=True)
+		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
 
 
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
