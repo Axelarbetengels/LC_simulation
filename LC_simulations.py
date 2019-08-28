@@ -35,13 +35,23 @@ def gen_fourier_coeff(freq, PSD_index, sum_flux=1e3):
 class lightcurve:
 
 
-	def __init__(self, data):
+	def __init__(self, data=None):
 
-		self.data = data
-		self.mjd_data = data[:,0]
-		self.data_time_span = round(max(self.mjd_data)-min(self.mjd_data))
-		self.mean_LC_data = np.mean(data[:,1])
-		self.std_LC_data = np.std(data[:,1])
+		if data==None:
+			self.data = data
+			print ('Attention, No real lightcurve were given')
+		
+		else:
+
+			self.data = data
+			self.mjd_data = data[:,0]
+			self.data_time_span = round(max(self.mjd_data)-min(self.mjd_data))
+			
+			self.flux_LC_data = data[:,1]
+			self.flux_error_LC_data = data[:,2]
+			
+			self.mean_LC_data = np.mean(data[:,1])
+			self.std_LC_data = np.std(data[:,1])
 
 
 	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False):
@@ -78,29 +88,29 @@ class lightcurve:
 			#cut LC to desired length
 			if N_LC_sim_length_mult == 1 :
 
+				cut_LC = full_LC
 				#bin LC to desired bin width
 				sim_t_slices = np.arange(0, len(full_LC), 1) * LC_sim_time_precision
 
-				full_LC_binned = stats.binned_statistic(sim_t_slices, full_LC, 'mean', bins=(len(full_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
 
-				#append LC to LC list
-				LC_sim_flux.append(full_LC_binned)
 			
 			else :
 
 				cut = random.randint(0, LC_sim_length/2)
 
-				full_LC = full_LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)]
+				cut_LC = full_LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)]
 
 				#bin LC to desired bin width
-				sim_t_slices = np.arange(0, len(full_LC), 1) * LC_sim_time_precision
+				sim_t_slices = np.arange(0, len(cut_LC), 1) * LC_sim_time_precision
 
-				full_LC_binned = stats.binned_statistic(sim_t_slices, full_LC, 'mean', bins=(len(full_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+				full_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
 				
-				#append LC to LC list
-				LC_sim_flux.append(full_LC_binned)
-			
 
+ 
+			#append LC to LC list
+			LC_sim_flux.append(cut_LC)	
+			
 			print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
 		
 
@@ -128,6 +138,11 @@ class lightcurve:
 
 
 	def simulate_LC_sampled(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False):
+
+		if self.data==None:
+			print ('An observed lightcurve is needed to compute an sampled light curve')
+			return 0
+
 
 		LC_sim_flux_sampled = []
 		T_bins_sim_LC_sampled = []
