@@ -4,7 +4,7 @@ import random
 import cmath
 from numpy.fft import fft, ifft
 from scipy import stats
-
+import math
 
 def gen_random_numbers_normaldistr(N_numbers):
 
@@ -16,7 +16,7 @@ def gen_random_numbers_normaldistr(N_numbers):
 	return s
 
 
-def gen_fourier_coeff(freq, PSD_index, sum_flux=1e0):
+def gen_fourier_coeff(freq, PSD_index, sum_flux=1e5):
 
 		factor = (1/freq)**(PSD_index/2)
 
@@ -45,7 +45,7 @@ class lightcurve:
 
 			self.data = data
 			self.mjd_data = data[:,0]
-			self.data_time_span = round(max(self.mjd_data)-min(self.mjd_data))
+			self.data_time_span = math.ceil(max(self.mjd_data)-min(self.mjd_data))
 			
 			self.flux_LC_data = data[:,1]
 			self.flux_error_LC_data = data[:,2]
@@ -55,7 +55,7 @@ class lightcurve:
 
 
 
-	def produce_sampling_pattern(self, LC_output_t_bin):
+	def produce_sampling_pattern(self, LC_output_t_bin, LC_sim_time_span):
 
 		if not len(self.data):
 			print ('An observed lightcurve is needed to compute an sampled light curve')
@@ -64,7 +64,7 @@ class lightcurve:
 
 		mjd_data = np.sort(self.mjd_data)
 
-		sim_T_bins = np.linspace(min(mjd_data), min(mjd_data)+self.data_time_span, self.sim_LC_Npoints)
+		sim_T_bins = np.linspace(min(mjd_data), min(mjd_data)+LC_sim_time_span, self.sim_LC_Npoints)
 
 		pattern = np.full(len(sim_T_bins), False, dtype=bool)
 
@@ -148,10 +148,10 @@ class lightcurve:
 
 				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(cut_LC_binned)**2 )
 
-				
+
 				if sample_sim_LC==False:
 					
-					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+self.data_time_span, self.sim_LC_Npoints)
+					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+LC_sim_time_span, self.sim_LC_Npoints)
 
 					LC_sim_flux_sampled = cut_LC_binned
 
@@ -159,21 +159,22 @@ class lightcurve:
 				if sample_sim_LC==True:
 					
 					#sample LC
-					sampling_pattern = self.produce_sampling_pattern(LC_output_t_bin)
+					sampling_pattern = self.produce_sampling_pattern(LC_output_t_bin, LC_sim_time_span)
 
-					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+self.data_time_span, self.sim_LC_Npoints)[sampling_pattern]
+					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+LC_sim_time_span, self.sim_LC_Npoints)[sampling_pattern]
 					
 					LC_sim_flux_sampled = cut_LC_binned[sampling_pattern]
 
-				#add Noise
+				#add Gaussian Noise, following errorbar of observations
+
+				LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
 				
 
 				#normalize LC
 				if normalize_sim_LC==True:
 
 					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(cut_LC_binned))*self.norm_factor + self.mean_LC_data
-	 			
-				
+					
 
 				#append LC to LC list
 				LC_sim_flux.append(LC_sim_flux_sampled)	
