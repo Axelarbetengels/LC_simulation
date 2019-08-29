@@ -35,7 +35,7 @@ def gen_fourier_coeff(freq, PSD_index, sum_flux=1e5):
 class lightcurve:
 
 
-	def __init__(self, data=[]):
+	def __init__(self, data=[], mjd_column=0, flux_column=1, flux_error_column=2):
 
 		if not len(data):
 			self.data = data
@@ -44,14 +44,14 @@ class lightcurve:
 		else:
 
 			self.data = data
-			self.mjd_data = data[:,0]
+			self.mjd_data = data[:,mjd_column]
 			self.data_time_span = math.ceil(max(self.mjd_data)-min(self.mjd_data))
 			
-			self.flux_LC_data = data[:,1]
-			self.flux_error_LC_data = data[:,2]
+			self.flux_LC_data = data[:,flux_column]
+			self.flux_error_LC_data = data[:,flux_error_column]
 			
-			self.mean_LC_data = np.mean(data[:,1])
-			self.std_LC_data = np.std(data[:,1])
+			self.mean_LC_data = np.mean(data[:,flux_column])
+			self.std_LC_data = np.std(data[:,flux_column])
 
 
 
