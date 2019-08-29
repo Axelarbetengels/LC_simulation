@@ -36,7 +36,7 @@ def LCCF(t, mjd_1, mjd_2, flux_1, flux_2, delta_t):
 
 def calc_LCCF_LC(LC1, LC2, t_min, t_max, delta_t):
 
-	N_LC_simulated = len(LC1[0])
+	N_LC_simulated = len(LC1[1])
 	
 	if (len(LC1[0])!=len(LC2[0])):
 		return 'ERROR, Number of LC simulated not equal'
@@ -56,7 +56,7 @@ def calc_LCCF_LC(LC1, LC2, t_min, t_max, delta_t):
 		
 		for lag in t_lag:
 
-			lccfi.append((LCCF(lag, t_LC1[i], t_LC2[i], f_LC1[i], f_LC2[i], delta_t)))
+			lccfi.append((LCCF(lag, t_LC1, t_LC2, f_LC1[i], f_LC2[i], delta_t)))
 
 		LCCFs.append(lccfi)
 		print ('LCCF of LC pair ', i+1, ' out of' , N_LC_simulated, ' computed!')
