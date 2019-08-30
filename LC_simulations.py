@@ -5,6 +5,7 @@ import cmath
 from numpy.fft import fft, ifft
 from scipy import stats
 import math
+from .PSD_calc import *
 
 def gen_random_numbers_normaldistr(N_numbers):
 
@@ -196,8 +197,6 @@ class lightcurve:
 
 
 
-
-
 	def simulate_realistic_LC(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
 
 		if not len(self.data):
@@ -213,4 +212,42 @@ class lightcurve:
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
 
+
+
+
+	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
+
+		beta = np.arange(1,2,0.1)
+		suf_list = []
+
+		
+		for beta_i in beta:
+			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			
+			freq, sim_PSDs = calc_sim_PSD(sim_LCs)
+			freq, obs_PSD = calc_obs_PSD(self.mjd_data, self.flux_LC_data)
+
+			chisquare_obs = calc_chisquare_PSD(obs_PSD, sim_PSDs)
+			
+			suf = 0
+			for i in range(len(sim_PSDs)):
+
+				chisquare_sim_1 = calc_chisquare_PSD(sim_PSDs[i], sim_PSDs)
+				if chisquare_sim_1>chisquare_obs:
+					suf+=1
+
+			suf = suf/len(sim_PSDs)
+			suf_list.append(suf)
+
+
+		plt.figure()
+		plt.plot(beta, suf_list, 'r-')
+
+		plt.xlabel(r'$\beta$')
+		plt.ylabel('SuF')
+		plt.show()
+
+		best_beta = beta[np.amax(beta)]
+
+		return best_beta
 
