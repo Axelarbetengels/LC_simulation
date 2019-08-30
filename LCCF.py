@@ -38,7 +38,7 @@ def calc_LCCF_LC(LC1, LC2, t_min, t_max, delta_t):
 
 	N_LC_simulated = len(LC1[1])
 	
-	if (len(LC1[0])!=len(LC2[0])):
+	if (len(LC1[1])!=len(LC2[1])):
 		return 'ERROR, Number of LC simulated not equal'
 
 		
