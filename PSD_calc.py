@@ -64,7 +64,7 @@ def calc_chisquare_PSD(PSD_1, PSD_sim):
 
 	mean_PSD_sim = []
 	std_PSD_sim = []
-	
+
 	for i in range(len(PSD_sim[0])):
 
 		mean_PSD_sim.append(np.mean(PSD_sim[:,i]))
