@@ -215,13 +215,15 @@ class lightcurve:
 
 
 
-	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
+	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name='SuF_vs_pwlindex.pdf'):
 
-		beta = np.arange(1,2,0.1)
+		beta = np.arange(1,2.1,0.1)
 		suf_list = []
 
 		
 		for beta_i in beta:
+			print ('Working on beta = ', beta_i, '...')
+
 			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
 			
 			freq, sim_PSDs = calc_sim_PSD(sim_LCs)
@@ -245,8 +247,8 @@ class lightcurve:
 
 		plt.xlabel(r'$\beta$')
 		plt.ylabel('SuF')
-		plt.show()
-
+		plt.savefig(output_fig_name)
+		
 		best_beta = beta[np.argmax(suf_list)]
 	
 		return best_beta
