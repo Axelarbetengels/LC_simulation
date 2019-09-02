@@ -247,7 +247,7 @@ class lightcurve:
 		plt.ylabel('SuF')
 		plt.show()
 
-		best_beta = beta[np.amax(beta)]
-
+		best_beta = beta[beta==np.amax(beta)]
+	
 		return best_beta
 
