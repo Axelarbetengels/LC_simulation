@@ -47,7 +47,7 @@ class lightcurve:
 			self.data = data
 			self.mjd_data = data[:,mjd_column]
 			self.data_time_span = math.ceil(max(self.mjd_data)-min(self.mjd_data))
-			
+
 			self.flux_LC_data = data[:,flux_column]
 			self.flux_error_LC_data = data[:,flux_error_column]
 			
@@ -104,7 +104,6 @@ class lightcurve:
 
 			#inverse fourier, produce simulated LC
 			full_LC = ifft(fourier_coeffs).real
-
 			
 			#cut LC to desired length
 			if N_LC_sim_length_mult == 1 :
@@ -217,7 +216,7 @@ class lightcurve:
 
 	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name='SuF_vs_pwlindex.pdf'):
 
-		beta = np.arange(1,2.1,0.1)
+		beta = np.arange(0.7,2.1,0.05)
 		suf_list = []
 
 		
