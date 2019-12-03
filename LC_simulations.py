@@ -214,9 +214,10 @@ class lightcurve:
 
 
 
-	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name='SuF_vs_pwlindex.pdf'):
+	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
 
-		beta = np.arange(0.7,2.1,0.05)
+		#beta = np.arange(0.7,2.1,0.05)
+		beta = np.arange(0.7,2.1,0.1)#for PSD uncertainty estimation
 		suf_list = []
 
 		
@@ -226,7 +227,14 @@ class lightcurve:
 			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
 			
 			freq, sim_PSDs = calc_sim_PSD(sim_LCs)
-			freq, obs_PSD = calc_obs_PSD(self.mjd_data, self.flux_LC_data)
+			
+			if np.shape(true_beta_LC_mjd) and np.shape(true_beta_LC_flux) :#in case one wants to estimate uncertainty
+				
+				freq, obs_PSD = calc_obs_PSD(true_beta_LC_mjd, true_beta_LC_flux)
+
+			else:#in case one wants to estimate PSD from real data 
+
+				freq, obs_PSD = calc_obs_PSD(self.mjd_data, self.flux_LC_data)
 
 			chisquare_obs = calc_chisquare_PSD(obs_PSD, sim_PSDs)
 			
@@ -252,3 +260,25 @@ class lightcurve:
 	
 		return best_beta
 
+
+	def estimate_PSD_uncertainty(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
+		#estimate the PSD uncertainties with a Neyman construction
+
+		fitted_beta = []
+		n_fit = 100
+
+		#create LC with known PSD index
+		true_beta_sim_LC = self.simulate_realistic_LC(1, true_beta, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+		true_beta_mjd_sim = true_beta_sim_LC[0]
+		true_beta_flux_sim = true_beta_sim_LC[1][0]
+		
+		#estimate PSD for a large number of fits
+		for i in range(n_fit):
+
+			best_fit_beta = self.estimate_PSD(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name=str(i), true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
+			fitted_beta.append(best_fit_beta)
+		
+		#get uncertainty bands
+		uncertainty_band = [np.percentile(fitted_beta, 100-68), np.percentile(fitted_beta, 68)]
+		
+		return true_beta, uncertainty_band
