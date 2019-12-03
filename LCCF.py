@@ -63,3 +63,5 @@ def calc_LCCF_LC(LC1, LC2, t_min, t_max, delta_t):
 	
 	return (t_lag, np.array(LCCFs))
 
+
+
