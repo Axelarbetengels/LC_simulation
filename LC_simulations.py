@@ -281,4 +281,11 @@ class lightcurve:
 		#get uncertainty bands
 		uncertainty_band = [np.percentile(fitted_beta, 100-68), np.percentile(fitted_beta, 68)]
 		
+		plt.figure()
+		plt.hist(fitted_beta, bins=20)
+		plt.xlabel(r'$\beta_{fit}$')
+		plt.ylabel('Counts')
+		plt.title(r'$\beta_{true}=$ '+str(true_beta))
+		plt.savefig(str(true_beta)+'.pdf')
+		
 		return true_beta, uncertainty_band
