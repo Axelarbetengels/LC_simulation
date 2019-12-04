@@ -261,21 +261,22 @@ class lightcurve:
 		return best_beta
 
 
-	def estimate_PSD_uncertainty(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
+	def estimate_PSD_uncertainty(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, fig_name):
 		#estimate the PSD uncertainties with a Neyman construction
 
 		fitted_beta = []
 		n_fit = 100
 
-		#create LC with known PSD index
-		true_beta_sim_LC = self.simulate_realistic_LC(1, true_beta, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
-		true_beta_mjd_sim = true_beta_sim_LC[0]
-		true_beta_flux_sim = true_beta_sim_LC[1][0]
 		
 		#estimate PSD for a large number of fits
 		for i in range(n_fit):
+			
+			#create LC with known PSD index
+			true_beta_sim_LC = self.simulate_realistic_LC(1, true_beta, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			true_beta_mjd_sim = true_beta_sim_LC[0]
+			true_beta_flux_sim = true_beta_sim_LC[1][0]
 
-			best_fit_beta = self.estimate_PSD(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name=str(i), true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
+			best_fit_beta = self.estimate_PSD(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name=fig_name+str(i), true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
 			fitted_beta.append(best_fit_beta)
 		
 		#get uncertainty bands
