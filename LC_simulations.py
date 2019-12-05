@@ -166,7 +166,7 @@ class lightcurve:
 					LC_sim_flux_sampled = cut_LC_binned[sampling_pattern]
 
 				#add Gaussian Noise, following errorbar of observations
-
+				
 				LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
 				
 
@@ -217,7 +217,7 @@ class lightcurve:
 	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
 
 		#beta = np.arange(0.7,2.1,0.05)
-		beta = np.arange(0.7,2.1,0.1)#for PSD uncertainty estimation
+		beta = np.arange(0.6,2.1,0.1)#for PSD uncertainty estimation
 		suf_list = []
 
 		
