@@ -288,5 +288,6 @@ class lightcurve:
 		plt.ylabel('Counts')
 		plt.title(r'$\beta_{true}=$ '+str(true_beta))
 		plt.savefig(str(true_beta)+'.pdf')
+
 		
-		return true_beta, uncertainty_band
+		return true_beta, uncertainty_band 
