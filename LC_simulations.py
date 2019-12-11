@@ -290,7 +290,8 @@ class lightcurve:
 		plt.title(r'$\beta_{true}=$ '+str(true_beta))
 		plt.savefig(str(true_beta)+'.pdf')
 
-		#save fitted values in .txt file
+		#save fitted values in .txt file 
+		#jjj
 		np.savetxt('beta_'+std(true_beta)+fig_name+'.txt', fitted_beta)
 		
 		return true_beta, uncertainty_band 
