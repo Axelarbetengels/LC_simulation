@@ -292,6 +292,6 @@ class lightcurve:
 
 		#save fitted values in .txt file 
 		
-		np.savetxt('beta_'+std(true_beta)+fig_name+'.txt', fitted_beta)
+		np.savetxt('beta_'+str(true_beta)+fig_name+'.txt', fitted_beta)
 		
 		return true_beta, uncertainty_band 
