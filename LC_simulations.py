@@ -226,16 +226,16 @@ class lightcurve:
 
 			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
 			
-			freq, sim_PSDs = calc_sim_PSD(sim_LCs)
-			
+			freq, sim_PSDs = calc_sim_PSD(sim_LCs, self.mjd_data)
+				
 			if np.shape(true_beta_LC_mjd) and np.shape(true_beta_LC_flux) :#in case one wants to estimate uncertainty
 				
 				freq, obs_PSD = calc_obs_PSD(true_beta_LC_mjd, true_beta_LC_flux)
-
+				
 			else:#in case one wants to estimate PSD from real data 
 
 				freq, obs_PSD = calc_obs_PSD(self.mjd_data, self.flux_LC_data)
-
+				
 			chisquare_obs = calc_chisquare_PSD(obs_PSD, sim_PSDs)
 			
 			suf = 0
