@@ -247,7 +247,7 @@ class lightcurve:
 
 			suf = suf/len(sim_PSDs)
 			suf_list.append(suf)
-			
+			print (suf_list)
 
 		plt.figure()
 		plt.plot(beta, suf_list, 'r-')

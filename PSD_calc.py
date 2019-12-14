@@ -5,14 +5,15 @@ import numpy as np
 
 def calc_sim_PSD(LC, mjd_data):
 
-	t = np.sort(mjd_data)
+	t = mjd_data
+	t_f = np.sort(mjd_data)
 	T = max(t)-min(t)
 	N = len(t)
 	
 	LCs_flux = LC[1]
 
 	#freq = np.arange(1,  N/2 ) / T
-	freq = np.arange(1/T, 1/(2*min(t[1:]-t[:-1]))) 
+	freq = np.arange(1/T, 1/(2*min(t_f[1:]-t_f[:-1]))) 
 	
 	PSD = []
 
@@ -36,15 +37,16 @@ def calc_sim_PSD(LC, mjd_data):
 
 def calc_obs_PSD(obs_mjd, obs_flux):
 	
-	t = np.sort(obs_mjd)
-		
+	t = obs_mjd
+	t_f = np.sort(obs_mjd)
+
 	T = max(t)-min(t)
 	N = len(t)
 
 	LC_flux = obs_flux
 	
 	#freq = np.arange(1,  N/2 ) / T
-	freq = np.arange(1/T, 1/(2*min(t[1:]-t[:-1]))) 
+	freq = np.arange(1/T, 1/(2*min(t_f[1:]-t_f[:-1]))) 
 
 	PSD = []
 
