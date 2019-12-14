@@ -265,7 +265,7 @@ class lightcurve:
 		#estimate the PSD uncertainties with a Neyman construction
 
 		fitted_beta = []
-		n_fit = 100
+		n_fit = 200
 
 		
 		#estimate PSD for a large number of fits

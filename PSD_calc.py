@@ -39,7 +39,7 @@ def calc_obs_PSD(obs_mjd, obs_flux):
 	t = obs_mjd
 	T = max(t)-min(t)
 	N = len(t)
-	
+
 	LC_flux = obs_flux
 
 	#freq = np.arange(1,  N/2 ) / T
