@@ -11,7 +11,9 @@ def calc_sim_PSD(LC):
 	
 	LCs_flux = LC[1]
 
-	freq = np.arange(1,  N/2 ) / T
+	#freq = np.arange(1,  N/2 ) / T
+	freq = np.arange(1/T, 1/(2*min(t[1:]-t[:-1]))) 
+
 	PSD = []
 
 	for i in range(len(LCs_flux)):
@@ -40,7 +42,9 @@ def calc_obs_PSD(obs_mjd, obs_flux):
 	
 	LC_flux = obs_flux
 
-	freq = np.arange(1,  N/2 ) / T
+	#freq = np.arange(1,  N/2 ) / T
+	freq = np.arange(1/T, 1/(2*min(t[1:]-t[:-1]))) 
+
 	PSD = []
 
 
