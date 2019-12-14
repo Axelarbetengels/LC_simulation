@@ -3,9 +3,9 @@ import numpy as np
 
 
 
-def calc_sim_PSD(LC):
+def calc_sim_PSD(LC, mjd_data):
 
-	t = LC[0]
+	t = np.sort(mjd_data)
 	T = max(t)-min(t)
 	N = len(t)
 	
@@ -13,7 +13,7 @@ def calc_sim_PSD(LC):
 
 	#freq = np.arange(1,  N/2 ) / T
 	freq = np.arange(1/T, 1/(2*min(t[1:]-t[:-1]))) 
-
+	
 	PSD = []
 
 	for i in range(len(LCs_flux)):
@@ -35,20 +35,19 @@ def calc_sim_PSD(LC):
 
 
 def calc_obs_PSD(obs_mjd, obs_flux):
-
-	t = obs_mjd
+	
+	t = np.sort(obs_mjd)
+		
 	T = max(t)-min(t)
 	N = len(t)
 	
 	LC_flux = obs_flux
-
+	
 	#freq = np.arange(1,  N/2 ) / T
 	freq = np.arange(1/T, 1/(2*min(t[1:]-t[:-1]))) 
 
 	PSD = []
 
-
-	PSD = []
 	for j in range(len(freq)):
 
 		F = (np.sum(LC_flux*np.cos(2*np.pi*freq[j]*t)))**2 + (np.sum(LC_flux*np.sin(2*np.pi*freq[j]*t)))**2
@@ -76,7 +75,7 @@ def calc_chisquare_PSD(PSD_1, PSD_sim):
 
 	mean_PSD_sim = np.array(mean_PSD_sim)
 	std_PSD_sim = np.array(mean_PSD_sim)
-
+ 
 	chisquare = (PSD_1-mean_PSD_sim)**2/(std_PSD_sim)**2
 
 	chisquare = np.sum(chisquare)
