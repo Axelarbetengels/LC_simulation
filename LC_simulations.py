@@ -5,7 +5,9 @@ import cmath
 from numpy.fft import fft, ifft
 from scipy import stats
 import math
+from .MFVF import * 
 from .PSD_calc import *
+from sklearn.neighbors import KernelDensity
 
 def gen_random_numbers_normaldistr(N_numbers):
 
@@ -166,9 +168,9 @@ class lightcurve:
 					LC_sim_flux_sampled = cut_LC_binned[sampling_pattern]
 
 				#add Gaussian Noise, following errorbar of observations
-				
+
 				LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
-				
+
 
 				#normalize LC
 				if normalize_sim_LC==True:
@@ -276,8 +278,119 @@ class lightcurve:
 			true_beta_mjd_sim = true_beta_sim_LC[0]
 			true_beta_flux_sim = true_beta_sim_LC[1][0]
 
-
 			best_fit_beta = self.estimate_PSD(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
+			fitted_beta.append(best_fit_beta)
+		
+		#get uncertainty bands
+		uncertainty_band = [np.percentile(fitted_beta, 100-68), np.percentile(fitted_beta, 68)]
+		
+		plt.figure()
+		plt.hist(fitted_beta, bins=20)
+		plt.xlabel(r'$\beta_{fit}$')
+		plt.ylabel('Counts')
+		plt.title(r'$\beta_{true}=$ '+str(true_beta))
+		plt.savefig(str(true_beta)+'.pdf')
+
+		#save fitted values in .txt file 
+		
+		np.savetxt('beta_'+str(true_beta)+fig_name+'.txt', fitted_beta)
+		
+		return true_beta, uncertainty_band 
+
+
+
+
+
+	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
+
+		#beta = np.arange(0.7,2.1,0.05)
+		beta = np.arange(0.6,2.1,0.1)#for PSD uncertainty estimation
+		suf_list = []
+		mfvf_binning = 6
+
+		obs_mfvf_result = mfvf(np.array([self.mjd_data, self.flux_LC_data]).T)
+		obs_freq = 1/obs_mfvf_result[:,0]
+		obs_mfvf = obs_mfvf_result[:,1]
+
+		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
+		obs_freq_binned = ((obs_freq_edges[1:]+obs_freq_edges[:-1])/2.)
+
+		log_like_list = []
+
+		for beta_i in beta:
+			print ('Working on beta = ', beta_i, '...')
+
+			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			
+			all_mfvf = []	
+			for l in range(len(sim_LCs[1])):
+
+				mjd_sim = sim_LCs[0]
+				flux_sim = sim_LCs[1][l]
+				xyf = np.array([mjd_sim, flux_sim]).T
+		
+				mfvf_result = mfvf(xyf)
+				freq = 1/mfvf_result[:,0]
+				mfvf_value = mfvf_result[:,1]
+				
+				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
+				freq_binned = ((freq_edges[1:]+freq_edges[:-1])/2.)
+				
+				all_mfvf.append(mfvf_binned)
+				
+
+			all_mfvf = np.array(all_mfvf)
+
+			log_like = 0
+
+			for frequency in range(len(freq_binned)):
+				'''
+				#using kde
+				kd = KernelDensity(kernel='gaussian', bandwidth=1e-20)
+				kd.fit(all_mfvf[:,frequency][:, None])
+
+				p_i = np.exp(kd.score_samples(np.array([obs_mfvf_binned[frequency]])[:,None]))
+
+				log_like+=np.log(p_i)
+				###
+				'''
+				#using histogram only, no fit
+				hist = np.histogram(all_mfvf[:,frequency], density=True)
+				hist_dist = stats.rv_histogram(hist)
+
+				p_i = hist_dist.pdf(obs_mfvf_binned[frequency])
+
+				if p_i == 0:
+					log_like = log_like
+				else:
+					log_like += np.log(p_i)
+				###
+			log_like_list.append(log_like)
+			
+			print (log_like_list)
+				
+				
+		best_beta = beta[np.argmax(log_like_list)]
+		print (best_beta)
+		return best_beta
+
+
+
+	def estimate_PSD_uncertainty_MFVF(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, fig_name):
+
+		fitted_beta = []
+		n_fit = 200
+
+		
+		#estimate PSD for a large number of fits
+		for i in range(n_fit):
+			
+			#create LC with known PSD index
+			true_beta_sim_LC = self.simulate_realistic_LC(1, true_beta, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			true_beta_mjd_sim = true_beta_sim_LC[0]
+			true_beta_flux_sim = true_beta_sim_LC[1][0]
+
+			best_fit_beta = self.estimate_PSD_MFVF(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
 			fitted_beta.append(best_fit_beta)
 		
 		#get uncertainty bands
