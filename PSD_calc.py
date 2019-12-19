@@ -1,12 +1,13 @@
 import numpy as np 
-
+from scipy import stats
+import matplotlib.pyplot as plt
 
 
 
 def calc_sim_PSD(LC, mjd_data):
 
 	t = mjd_data
-	t_f = 1.
+	t_f = 2.
 	T = max(t)-min(t)
 	N = len(t)
 	
@@ -14,7 +15,7 @@ def calc_sim_PSD(LC, mjd_data):
 
 	#freq = np.arange(1,  N/2 ) / T
 	freq = np.arange(1, T/(2*t_f)) / T
-	
+
 	PSD = []
 
 	for i in range(len(LCs_flux)):
@@ -27,18 +28,25 @@ def calc_sim_PSD(LC, mjd_data):
 			
 			#normalize F
 			PSDj.append(F * (2*T)/(np.mean(flux)**2 * N**2))
+		
+		#logbins
+		#psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSDj, 'mean', bins=np.logspace(np.log10(freq[0]), np.log10(freq[-1]), 1+(np.log10(freq[-1])-np.log10(freq[0]))/np.log10(1.5)))
+		#freq_log = 10**((np.log10(freq_log_edges[1:])+np.log10(freq_log_edges[:-1]))/2.)
+		#linbins
+		psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSDj, 'mean', bins=np.linspace(freq[0], freq[-1], 12))
+		freq_log = ((freq_log_edges[1:]+freq_log_edges[:-1])/2.)
 
-		PSD.append(PSDj)	
-
+		#PSD.append(PSDj)	
+		PSD.append(psd_log_binned)
 	
-	return freq, np.array(PSD)
+	return freq_log, np.array(PSD)
 
 
 
 def calc_obs_PSD(obs_mjd, obs_flux):
 	
 	t = obs_mjd
-	t_f = 1.
+	t_f = 2.
 
 	T = max(t)-min(t)
 	N = len(t)
@@ -47,7 +55,6 @@ def calc_obs_PSD(obs_mjd, obs_flux):
 	
 	#freq = np.arange(1,  N/2 ) / T
 	freq = np.arange(1, T/(2*t_f)) / T
- 
 
 	PSD = []
 
@@ -57,9 +64,18 @@ def calc_obs_PSD(obs_mjd, obs_flux):
 			
 		#normalize F
 		PSD.append(F * (2*T)/(np.mean(LC_flux)**2 * N**2))
+	#logbins
+	#psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSD, 'mean', bins=np.logspace(np.log10(freq[0]), np.log10(freq[-1]), 1+(np.log10(freq[-1])-np.log10(freq[0]))/np.log10(1.5)))
+	#freq_log = 10**((np.log10(freq_log_edges[1:])+np.log10(freq_log_edges[:-1]))/2.)
+	#linbins
+	psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSD, 'mean', bins=np.linspace(freq[0], freq[-1], 12))
+	freq_log = ((freq_log_edges[1:]+freq_log_edges[:-1])/2.)
 
-	
-	return freq, np.array(PSD)
+
+	#plt.loglog(freq_log, psd_log_binned)
+	#plt.show()
+	#return freq, np.array(PSD)
+	return freq_log, psd_log_binned
 
 
 
