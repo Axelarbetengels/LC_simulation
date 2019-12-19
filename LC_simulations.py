@@ -119,7 +119,7 @@ class lightcurve:
 
 			else :
 
-				cut = random.randint(0, LC_sim_length/2)
+				cut = random.randint(0, round(LC_sim_length/2))
 
 				cut_LC = full_LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)+1]
 
@@ -306,11 +306,21 @@ class lightcurve:
 		#beta = np.arange(0.7,2.1,0.05)
 		beta = np.arange(0.6,2.1,0.1)#for PSD uncertainty estimation
 		suf_list = []
-		mfvf_binning = 6
+		#mfvf_binning = 8 #XRT
+		mfvf_binning = 9 #UVOT
+		#mfvf_binning = 7#for kva optical
 
-		obs_mfvf_result = mfvf(np.array([self.mjd_data, self.flux_LC_data]).T)
-		obs_freq = 1/obs_mfvf_result[:,0]
-		obs_mfvf = obs_mfvf_result[:,1]
+		if np.shape(true_beta_LC_mjd) and np.shape(true_beta_LC_flux) :
+			obs_mfvf_result = mfvf(np.array([true_beta_LC_mjd, true_beta_LC_flux]).T)
+			obs_freq = 1/obs_mfvf_result[:,0]
+			obs_mfvf = obs_mfvf_result[:,1]
+
+		else:
+
+			obs_mfvf_result = mfvf(np.array([self.mjd_data, self.flux_LC_data]).T)
+			obs_freq = 1/obs_mfvf_result[:,0]
+			obs_mfvf = obs_mfvf_result[:,1]
+
 
 		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
 		obs_freq_binned = ((obs_freq_edges[1:]+obs_freq_edges[:-1])/2.)
@@ -330,6 +340,7 @@ class lightcurve:
 				xyf = np.array([mjd_sim, flux_sim]).T
 		
 				mfvf_result = mfvf(xyf)
+
 				freq = 1/mfvf_result[:,0]
 				mfvf_value = mfvf_result[:,1]
 				
@@ -337,21 +348,27 @@ class lightcurve:
 				freq_binned = ((freq_edges[1:]+freq_edges[:-1])/2.)
 				
 				all_mfvf.append(mfvf_binned)
-				
+				plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+
+			plt.loglog(obs_freq_binned, obs_mfvf_binned, 'rx')
+			plt.show()
 
 			all_mfvf = np.array(all_mfvf)
 
 			log_like = 0
 
 			for frequency in range(len(freq_binned)):
-				'''
+				
 				#using kde
-				kd = KernelDensity(kernel='gaussian', bandwidth=1e-20)
+				kd = KernelDensity(kernel='gaussian', bandwidth=0.1*np.mean(obs_mfvf_binned))
 				kd.fit(all_mfvf[:,frequency][:, None])
 
 				p_i = np.exp(kd.score_samples(np.array([obs_mfvf_binned[frequency]])[:,None]))
 
 				log_like+=np.log(p_i)
+				plt.hist(all_mfvf[:,frequency], density=True)
+				plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
+				plt.show()
 				###
 				'''
 				#using histogram only, no fit
@@ -365,6 +382,7 @@ class lightcurve:
 				else:
 					log_like += np.log(p_i)
 				###
+				'''
 			log_like_list.append(log_like)
 			
 			print (log_like_list)
