@@ -47,14 +47,14 @@ class lightcurve:
 		else:
 
 			self.data = data
-			self.mjd_data = data[:,mjd_column]
+			self.mjd_data = data[:,mjd_column][data[:,flux_error_column]>0]
 			self.data_time_span = math.ceil(max(self.mjd_data)-min(self.mjd_data))
 
-			self.flux_LC_data = data[:,flux_column]
-			self.flux_error_LC_data = data[:,flux_error_column]
+			self.flux_LC_data = data[:,flux_column][data[:,flux_error_column]>0]
+			self.flux_error_LC_data = data[:,flux_error_column][data[:,flux_error_column]>0]
 			
-			self.mean_LC_data = np.mean(data[:,flux_column])
-			self.std_LC_data = np.std(data[:,flux_column])
+			self.mean_LC_data = np.mean(data[:,flux_column][data[:,flux_error_column]>0])
+			self.std_LC_data = np.std(data[:,flux_column][data[:,flux_error_column]>0])
 
 
 
@@ -209,7 +209,7 @@ class lightcurve:
 
 		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
 
-
+		
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
 
@@ -301,23 +301,23 @@ class lightcurve:
 
 
 
-	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
+	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
 
 		#beta = np.arange(0.7,2.1,0.05)
-		beta = np.arange(0.6,2.1,0.1)#for PSD uncertainty estimation
+		beta = np.arange(0.7,2.1,0.05)#for PSD uncertainty estimation
 		suf_list = []
-		#mfvf_binning = 8 #XRT
-		mfvf_binning = 9 #UVOT
+		#mfvf_binning = 7 #XRT
+		#mfvf_binning = 6 #UVOT
 		#mfvf_binning = 7#for kva optical
 
 		if np.shape(true_beta_LC_mjd) and np.shape(true_beta_LC_flux) :
-			obs_mfvf_result = mfvf(np.array([true_beta_LC_mjd, true_beta_LC_flux]).T)
+			obs_mfvf_result = mfvf(np.array([true_beta_LC_mjdmfvf_min_time, true_beta_LC_flux]).T, mfvf_value)
 			obs_freq = 1/obs_mfvf_result[:,0]
 			obs_mfvf = obs_mfvf_result[:,1]
 
 		else:
 
-			obs_mfvf_result = mfvf(np.array([self.mjd_data, self.flux_LC_data]).T)
+			obs_mfvf_result = mfvf(np.array([self.mjd_data, self.flux_LC_data]).T, mfvf_min_time)
 			obs_freq = 1/obs_mfvf_result[:,0]
 			obs_mfvf = obs_mfvf_result[:,1]
 
@@ -339,19 +339,20 @@ class lightcurve:
 				flux_sim = sim_LCs[1][l]
 				xyf = np.array([mjd_sim, flux_sim]).T
 		
-				mfvf_result = mfvf(xyf)
+				mfvf_result = mfvf(xyf, mfvf_min_time)
 
 				freq = 1/mfvf_result[:,0]
 				mfvf_value = mfvf_result[:,1]
-				
+
 				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
 				freq_binned = ((freq_edges[1:]+freq_edges[:-1])/2.)
 				
 				all_mfvf.append(mfvf_binned)
-				plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
 
-			plt.loglog(obs_freq_binned, obs_mfvf_binned, 'rx')
-			plt.show()
+				#plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+
+			#plt.loglog(obs_freq_binned, obs_mfvf_binned, 'rx')
+			#plt.show()
 
 			all_mfvf = np.array(all_mfvf)
 
@@ -360,36 +361,31 @@ class lightcurve:
 			for frequency in range(len(freq_binned)):
 				
 				#using kde
-				kd = KernelDensity(kernel='gaussian', bandwidth=0.1*np.mean(obs_mfvf_binned))
+				kd = KernelDensity(kernel='gaussian', bandwidth=0.2*np.mean(obs_mfvf_binned))
 				kd.fit(all_mfvf[:,frequency][:, None])
 
 				p_i = np.exp(kd.score_samples(np.array([obs_mfvf_binned[frequency]])[:,None]))
 
 				log_like+=np.log(p_i)
-				plt.hist(all_mfvf[:,frequency], density=True)
-				plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
-				plt.show()
-				###
-				'''
-				#using histogram only, no fit
-				hist = np.histogram(all_mfvf[:,frequency], density=True)
-				hist_dist = stats.rv_histogram(hist)
-
-				p_i = hist_dist.pdf(obs_mfvf_binned[frequency])
-
-				if p_i == 0:
-					log_like = log_like
-				else:
-					log_like += np.log(p_i)
-				###
-				'''
+				#plt.hist(all_mfvf[:,frequency], density=True)
+				#plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
+				#plt.show()
+				
 			log_like_list.append(log_like)
 			
 			print (log_like_list)
 				
 				
 		best_beta = beta[np.argmax(log_like_list)]
-		print (best_beta)
+
+		plt.figure()
+		plt.plot(beta, log_like_list, 'r-')
+
+		plt.xlabel(r'$\beta$')
+		plt.ylabel('Log-likelihood')
+		plt.savefig(output_fig_name)
+
+		print ('The best fit PSD index is: ',best_beta)
 		return best_beta
 
 
