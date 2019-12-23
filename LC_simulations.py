@@ -366,7 +366,7 @@ class lightcurve:
 
 				p_i = np.exp(kd.score_samples(np.array([obs_mfvf_binned[frequency]])[:,None]))
 
-				log_like+=np.log(p_i)
+				log_like += np.log(p_i)
 				#plt.hist(all_mfvf[:,frequency], density=True)
 				#plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
 				#plt.show()
