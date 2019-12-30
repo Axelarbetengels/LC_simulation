@@ -311,7 +311,7 @@ class lightcurve:
 		#mfvf_binning = 7#for kva optical
 
 		if np.shape(true_beta_LC_mjd) and np.shape(true_beta_LC_flux) :
-			obs_mfvf_result = mfvf(np.array([true_beta_LC_mjdmfvf_min_time, true_beta_LC_flux]).T, mfvf_value)
+			obs_mfvf_result = mfvf(np.array([true_beta_LC_mjd, true_beta_LC_flux]).T, mfvf_min_time)
 			obs_freq = 1/obs_mfvf_result[:,0]
 			obs_mfvf = obs_mfvf_result[:,1]
 
@@ -390,10 +390,10 @@ class lightcurve:
 
 
 
-	def estimate_PSD_uncertainty_MFVF(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, fig_name):
+	def estimate_PSD_uncertainty_MFVF(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, fig_name):
 
 		fitted_beta = []
-		n_fit = 200
+		n_fit = 3
 
 		
 		#estimate PSD for a large number of fits
@@ -404,7 +404,7 @@ class lightcurve:
 			true_beta_mjd_sim = true_beta_sim_LC[0]
 			true_beta_flux_sim = true_beta_sim_LC[1][0]
 
-			best_fit_beta = self.estimate_PSD_MFVF(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
+			best_fit_beta = self.estimate_PSD_MFVF(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
 			fitted_beta.append(best_fit_beta)
 		
 		#get uncertainty bands
