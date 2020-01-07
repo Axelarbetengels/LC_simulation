@@ -304,7 +304,7 @@ class lightcurve:
 	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
 
 		#beta = np.arange(0.7,2.1,0.05)
-		beta = np.arange(0.7,2.1,0.05)#for PSD uncertainty estimation
+		beta = np.arange(0.7,2.1,0.1)#for PSD uncertainty estimation
 		suf_list = []
 		#mfvf_binning = 7 #XRT
 		#mfvf_binning = 6 #UVOT
@@ -349,10 +349,10 @@ class lightcurve:
 				
 				all_mfvf.append(mfvf_binned)
 
-				#plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+				plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
 
-			#plt.loglog(obs_freq_binned, obs_mfvf_binned, 'rx')
-			#plt.show()
+			plt.loglog(obs_freq_binned, obs_mfvf_binned, 'rx')
+			plt.show()
 
 			all_mfvf = np.array(all_mfvf)
 
@@ -361,15 +361,20 @@ class lightcurve:
 			for frequency in range(len(freq_binned)):
 				
 				#using kde
-				kd = KernelDensity(kernel='gaussian', bandwidth=0.2*np.mean(obs_mfvf_binned))
+				#kd = KernelDensity(kernel='gaussian', bandwidth=0.2*np.mean(obs_mfvf_binned))
+				#kd = KernelDensity(kernel='gaussian', bandwidth=0.2*np.mean(mfvf_binned))
+				kd = KernelDensity(kernel='gaussian', bandwidth=1.06*np.std(all_mfvf[:,frequency])*len(all_mfvf[:,frequency])**(-1/5))
+				
 				kd.fit(all_mfvf[:,frequency][:, None])
 
 				p_i = np.exp(kd.score_samples(np.array([obs_mfvf_binned[frequency]])[:,None]))
 
 				log_like += np.log(p_i)
-				#plt.hist(all_mfvf[:,frequency], density=True)
-				#plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
-				#plt.show()
+
+				plt.axvline(x=obs_mfvf_binned[frequency], color='k')
+				plt.hist(all_mfvf[:,frequency], density=True)
+				plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
+				plt.show()
 				
 			log_like_list.append(log_like)
 			
@@ -393,7 +398,7 @@ class lightcurve:
 	def estimate_PSD_uncertainty_MFVF(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, fig_name):
 
 		fitted_beta = []
-		n_fit = 3
+		n_fit = 200
 
 		
 		#estimate PSD for a large number of fits
