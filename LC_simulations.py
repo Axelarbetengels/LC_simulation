@@ -148,7 +148,7 @@ class lightcurve:
 			else:
 				#sample and normalize LC
 
-				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(cut_LC_binned)**2 )
+				#self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(cut_LC_binned)**2 )
 
 
 				if sample_sim_LC==False:
@@ -168,6 +168,8 @@ class lightcurve:
 					LC_sim_flux_sampled = cut_LC_binned[sampling_pattern]
 
 				#add Gaussian Noise, following errorbar of observations
+				
+				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
 
 				LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
 
@@ -304,7 +306,7 @@ class lightcurve:
 	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
 
 		#beta = np.arange(0.7,2.1,0.05)
-		beta = np.arange(0.7,2.1,0.1)#for PSD uncertainty estimation
+		beta = np.arange(1.2,2.1,0.1)#for PSD uncertainty estimation
 		suf_list = []
 		#mfvf_binning = 7 #XRT
 		#mfvf_binning = 6 #UVOT
