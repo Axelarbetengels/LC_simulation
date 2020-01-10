@@ -351,10 +351,10 @@ class lightcurve:
 				
 				all_mfvf.append(mfvf_binned)
 
-				plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+				#plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
 
-			plt.loglog(obs_freq_binned, obs_mfvf_binned, 'rx')
-			plt.show()
+			#plt.loglog(obs_freq_binned, obs_mfvf_binned, 'rx')
+			#plt.show()
 
 			all_mfvf = np.array(all_mfvf)
 
@@ -373,10 +373,10 @@ class lightcurve:
 
 				log_like += np.log(p_i)
 
-				plt.axvline(x=obs_mfvf_binned[frequency], color='k')
-				plt.hist(all_mfvf[:,frequency], density=True)
-				plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
-				plt.show()
+				#plt.axvline(x=obs_mfvf_binned[frequency], color='k')
+				#plt.hist(all_mfvf[:,frequency], density=True)
+				#plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
+				#plt.show()
 				
 			log_like_list.append(log_like)
 			
