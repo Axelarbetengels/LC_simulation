@@ -14,7 +14,7 @@ def calc_sim_PSD(LC, mjd_data):
 	LCs_flux = LC[1]
 
 	#freq = np.arange(1,  N/2 ) / T
-	freq = np.arange(1, T/(2*t_f)) / T
+	freq = np.arange(1, N/(2*t_f)) / T
 
 	PSD = []
 
