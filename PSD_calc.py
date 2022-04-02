@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 def calc_sim_PSD(LC, mjd_data):
 
 	t = mjd_data
-	t_f = 2.
+	t_f = 1#2.
 	T = max(t)-min(t)
 	N = len(t)
 	
@@ -27,7 +27,7 @@ def calc_sim_PSD(LC, mjd_data):
 			F = (np.sum(flux*np.cos(2*np.pi*freq[j]*t)))**2 + (np.sum(flux*np.sin(2*np.pi*freq[j]*t)))**2
 			
 			#normalize F
-			PSDj.append(F * (2*T)/(np.mean(flux)**2 * N**2))
+			PSDj.append(F * (2*T)/(N**2))
 		
 		#logbins
 		#psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSDj, 'mean', bins=np.logspace(np.log10(freq[0]), np.log10(freq[-1]), 1+(np.log10(freq[-1])-np.log10(freq[0]))/np.log10(1.5)))
@@ -43,18 +43,19 @@ def calc_sim_PSD(LC, mjd_data):
 
 
 
-def calc_obs_PSD(obs_mjd, obs_flux):
+def calc_obs_PSD(obs_mjd, obs_flux, PSD_bin_number):
+	
 	
 	t = obs_mjd
-	t_f = 2.
+	t_f = 1#2.
 
 	T = max(t)-min(t)
 	N = len(t)
 	
 	LC_flux = obs_flux
-	
+
 	#freq = np.arange(1,  N/2 ) / T
-	freq = np.arange(1, T/(2*t_f)) / T
+	freq = np.arange(1, N/(2*t_f)) / T
 
 	PSD = []
 
@@ -63,12 +64,14 @@ def calc_obs_PSD(obs_mjd, obs_flux):
 		F = (np.sum(LC_flux*np.cos(2*np.pi*freq[j]*t)))**2 + (np.sum(LC_flux*np.sin(2*np.pi*freq[j]*t)))**2
 			
 		#normalize F
-		PSD.append(F * (2*T)/(np.mean(LC_flux)**2 * N**2))
+		PSD.append(F * (2*T)/(N**2))
 	#logbins
 	#psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSD, 'mean', bins=np.logspace(np.log10(freq[0]), np.log10(freq[-1]), 1+(np.log10(freq[-1])-np.log10(freq[0]))/np.log10(1.5)))
 	#freq_log = 10**((np.log10(freq_log_edges[1:])+np.log10(freq_log_edges[:-1]))/2.)
 	#linbins
-	psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSD, 'mean', bins=np.linspace(freq[0], freq[-1], 12))
+	
+
+	psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSD, 'mean', bins=np.linspace(freq[0], freq[-1], PSD_bin_number))
 	freq_log = ((freq_log_edges[1:]+freq_log_edges[:-1])/2.)
 
 
