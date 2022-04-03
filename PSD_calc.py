@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 
-def calc_sim_PSD(LC, mjd_data):
+def calc_sim_PSD(LC, mjd_data, PSD_bin_number=30):
 
 	t = mjd_data
 	t_f = 1#2.
@@ -33,7 +33,7 @@ def calc_sim_PSD(LC, mjd_data):
 		#psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSDj, 'mean', bins=np.logspace(np.log10(freq[0]), np.log10(freq[-1]), 1+(np.log10(freq[-1])-np.log10(freq[0]))/np.log10(1.5)))
 		#freq_log = 10**((np.log10(freq_log_edges[1:])+np.log10(freq_log_edges[:-1]))/2.)
 		#linbins
-		psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSDj, 'mean', bins=np.linspace(freq[0], freq[-1], 12))
+		psd_log_binned, freq_log_edges, _ = stats.binned_statistic(freq, PSDj, 'mean', bins=np.linspace(freq[0], freq[-1], PSD_bin_number))
 		freq_log = ((freq_log_edges[1:]+freq_log_edges[:-1])/2.)
 
 		#PSD.append(PSDj)	
@@ -43,7 +43,7 @@ def calc_sim_PSD(LC, mjd_data):
 
 
 
-def calc_obs_PSD(obs_mjd, obs_flux, PSD_bin_number):
+def calc_obs_PSD(obs_mjd, obs_flux, PSD_bin_number=30):
 	
 	
 	t = obs_mjd
