@@ -21,7 +21,9 @@ def gen_random_numbers_normaldistr(N_numbers):
 
 def gen_fourier_coeff(freq, PSD_index, sum_flux=1e5):
 
-		factor = (1/freq)**(PSD_index/2)
+		#factor = (1/freq)**(PSD_index/2)
+		
+		factor = np.sqrt(0.5* (freq)**-PSD_index)
 
 		a = gen_random_numbers_normaldistr(len(freq)) * factor
 		b = gen_random_numbers_normaldistr(len(freq)) * factor
@@ -48,7 +50,7 @@ class lightcurve:
 
 			self.data = data
 			self.mjd_data = data[:,mjd_column][data[:,flux_error_column]>0]
-			self.data_time_span = math.ceil(max(self.mjd_data)-min(self.mjd_data))
+			self.data_time_span = max(self.mjd_data)-min(self.mjd_data)#math.ceil(max(self.mjd_data)-min(self.mjd_data))
 
 			self.flux_LC_data = data[:,flux_column][data[:,flux_error_column]>0]
 			self.flux_error_LC_data = data[:,flux_error_column][data[:,flux_error_column]>0]
@@ -73,10 +75,11 @@ class lightcurve:
 
 		for t_sim in range(len(sim_T_bins)):
 			a = (sim_T_bins[t_sim]-mjd_data)
-				
-			if min(abs(a)) < LC_output_t_bin/2 :
-				pattern[t_sim] = True
 
+			if min(abs(a)) < LC_output_t_bin/2:
+				pattern[t_sim] = True
+		
+		#print (len(pattern[pattern==True]), len(mjd_data))
 		return pattern
 
 
@@ -117,6 +120,7 @@ class lightcurve:
 
 				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
 
+
 			else :
 
 				cut = random.randint(0, round(LC_sim_length/2))
@@ -128,7 +132,7 @@ class lightcurve:
 
 				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
 
-
+			
 			self.sim_LC_Npoints = len(cut_LC_binned)
 
 			
@@ -171,7 +175,8 @@ class lightcurve:
 				
 				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
 
-				LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
+				if sample_sim_LC==True:
+					LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
 
 
 				#normalize LC
@@ -210,7 +215,6 @@ class lightcurve:
 		T_bins_sim_LC_sampled = []
 
 		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
-
 		
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
@@ -222,6 +226,8 @@ class lightcurve:
 
 		#beta = np.arange(0.7,2.1,0.05)
 		beta = np.arange(0.6,2.1,0.1)#for PSD uncertainty estimation
+		beta = np.arange(1.5,2.5,0.1)#for PSD uncertainty estimation
+
 		suf_list = []
 
 		
@@ -231,7 +237,7 @@ class lightcurve:
 			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
 			
 			freq, sim_PSDs = calc_sim_PSD(sim_LCs, self.mjd_data)
-				
+
 			if np.shape(true_beta_LC_mjd) and np.shape(true_beta_LC_flux) :#in case one wants to estimate uncertainty
 				
 				freq, obs_PSD = calc_obs_PSD(true_beta_LC_mjd, true_beta_LC_flux)
@@ -307,6 +313,8 @@ class lightcurve:
 
 		#beta = np.arange(0.7,2.1,0.05)
 		beta = np.arange(0.7,2.1,0.1)#for PSD uncertainty estimation
+		beta = np.arange(1.5,3.5,0.1)#for PSD uncertainty estimation
+
 		suf_list = []
 		#mfvf_binning = 7 #XRT
 		#mfvf_binning = 6 #UVOT
@@ -323,8 +331,9 @@ class lightcurve:
 			obs_freq = 1/obs_mfvf_result[:,0]
 			obs_mfvf = obs_mfvf_result[:,1]
 
-
 		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
+		#obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.logspace(np.log10(np.min(obs_freq)), np.log10(np.max(obs_freq)), mfvf_binning)) #log binning
+
 		obs_freq_binned = ((obs_freq_edges[1:]+obs_freq_edges[:-1])/2.)
 
 		log_like_list = []
@@ -337,26 +346,29 @@ class lightcurve:
 			all_mfvf = []	
 			for l in range(len(sim_LCs[1])):
 
-				mjd_sim = sim_LCs[0]
+				mjd_sim = np.round(sim_LCs[0], str(self.mjd_data)[::-1].find('.'))
 				flux_sim = sim_LCs[1][l]
 				xyf = np.array([mjd_sim, flux_sim]).T
-		
+
 				mfvf_result = mfvf(xyf, mfvf_min_time)
 
 				freq = 1/mfvf_result[:,0]
 				mfvf_value = mfvf_result[:,1]
 
 				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
+				#mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.logspace(np.log10(np.min(freq)), np.log10(np.max(freq)), mfvf_binning))#log binning
+
 				freq_binned = ((freq_edges[1:]+freq_edges[:-1])/2.)
 				
 				all_mfvf.append(mfvf_binned)
 
-				plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+				#plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
 
-			plt.loglog(obs_freq_binned, obs_mfvf_binned, 'ro--')
-			plt.ylabel('Power [u.a]')
-			plt.xlabel('frequency [day$^{-1}$]')
-			plt.show()
+			#plt.loglog(obs_freq_binned, obs_mfvf_binned, 'ro--')
+			#plt.ylabel('Power [u.a]')
+			#plt.xlabel('frequency [day$^{-1}$]')
+
+			#plt.show()
 
 			all_mfvf = np.array(all_mfvf)
 
@@ -375,10 +387,10 @@ class lightcurve:
 
 				log_like += np.log(p_i)
 
-				plt.axvline(x=obs_mfvf_binned[frequency], color='k')
-				plt.hist(all_mfvf[:,frequency], density=True)
-				plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
-				plt.show()
+				#plt.axvline(x=obs_mfvf_binned[frequency], color='k')
+				#plt.hist(all_mfvf[:,frequency], density=True)
+				#plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
+				#plt.show()
 				
 			log_like_list.append(log_like)
 			
