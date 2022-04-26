@@ -76,10 +76,9 @@ class lightcurve:
 		for t_sim in range(len(sim_T_bins)):
 			a = (sim_T_bins[t_sim]-mjd_data)
 
-			if min(abs(a)) < LC_output_t_bin/2:
+			if min(abs(a)) < LC_output_t_bin/1.982:
 				pattern[t_sim] = True
 		
-		#print (len(pattern[pattern==True]), len(mjd_data))
 		return pattern
 
 
@@ -152,8 +151,6 @@ class lightcurve:
 			else:
 				#sample and normalize LC
 
-				#self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(cut_LC_binned)**2 )
-
 
 				if sample_sim_LC==False:
 					
@@ -165,11 +162,14 @@ class lightcurve:
 				if sample_sim_LC==True:
 					
 					#sample LC
-					sampling_pattern = self.produce_sampling_pattern(LC_output_t_bin, LC_sim_time_span)
-
-					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+LC_sim_time_span, self.sim_LC_Npoints)[sampling_pattern]
 					
-					LC_sim_flux_sampled = cut_LC_binned[sampling_pattern]
+					bin_edges_low = self.mjd_data-LC_output_t_bin/2.
+					bin_edges_up = self.mjd_data+LC_output_t_bin/2.
+
+					T_bins_sim_LC_sampled = self.mjd_data
+
+					LC_sim_flux_sampled = stats.binned_statistic(sim_t_slices+min(self.mjd_data), cut_LC, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
+
 
 				#add Gaussian Noise, following errorbar of observations
 				
@@ -183,7 +183,6 @@ class lightcurve:
 				if normalize_sim_LC==True:
 
 					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(cut_LC_binned))*self.norm_factor + self.mean_LC_data
-					
 
 				#append LC to LC list
 				LC_sim_flux.append(LC_sim_flux_sampled)	
@@ -313,7 +312,7 @@ class lightcurve:
 
 		#beta = np.arange(0.7,2.1,0.05)
 		beta = np.arange(0.7,2.1,0.1)#for PSD uncertainty estimation
-		beta = np.arange(1.5,3.5,0.1)#for PSD uncertainty estimation
+		beta = np.arange(2.3,3.8,0.1)#for PSD uncertainty estimation
 
 		suf_list = []
 		#mfvf_binning = 7 #XRT
@@ -405,7 +404,7 @@ class lightcurve:
 		plt.xlabel(r'$\beta$')
 		plt.ylabel('Log-likelihood')
 		plt.savefig(output_fig_name)
-
+		plt.show()
 		print ('The best fit PSD index is: ',best_beta)
 		return best_beta
 
