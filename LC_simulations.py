@@ -8,6 +8,10 @@ import math
 from .MFVF import * 
 from .PSD_calc import *
 from sklearn.neighbors import KernelDensity
+from scipy.optimize import curve_fit
+import scipy
+import DELCgen
+
 
 def gen_random_numbers_normaldistr(N_numbers):
 
@@ -20,8 +24,6 @@ def gen_random_numbers_normaldistr(N_numbers):
 
 
 def gen_fourier_coeff(freq, PSD_index, sum_flux=1e5):
-
-		#factor = (1/freq)**(PSD_index/2)
 		
 		factor = np.sqrt(0.5* (freq)**-PSD_index)
 
@@ -34,6 +36,11 @@ def gen_fourier_coeff(freq, PSD_index, sum_flux=1e5):
 		#add int to make it real
 		coeff = np.append(sum_flux, coeff) 
 		return coeff
+
+
+def PL(v,A,beta):
+    p = A * v**(-beta) 
+    return p
 
 
 
@@ -81,6 +88,28 @@ class lightcurve:
 		
 		return pattern
 
+
+	def fit_PDF(self, plot=False):
+
+		if not len(self.data):
+			print ('An observed lightcurve is needed to fit the pdf')
+			return 0
+
+		#fit is done on normalized flux as for small values the Lognom distr gives weird outputs...
+		norm_flux = self.flux_LC_data/np.mean(self.flux_LC_data)
+		hist, bin_edges = np.histogram(norm_flux, density=True)
+		bin_center = (bin_edges[1:]+bin_edges[:-1])/2.
+
+		popt, pcov = curve_fit(scipy.stats.lognorm.pdf, bin_center, hist, maxfev=10000, p0=[np.mean(norm_flux), np.min(norm_flux), np.std(norm_flux)])
+
+		if plot==True:
+
+			plt.figure()
+			plt.hist(self.flux_LC_data/np.mean(self.flux_LC_data), density=True)
+			plt.plot(np.linspace(0, 3*max(bin_center), 100), scipy.stats.lognorm.pdf(np.linspace(0, 3*max(bin_center), 100),*popt))
+			plt.show()
+
+		return popt
 
 
 
@@ -142,8 +171,8 @@ class lightcurve:
 
 				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
 				
-				if normalize_sim_LC==True:
-					print ('An observed lightcurve is needed to normalize the simulated light curve')
+				if normalize_sim_LC==True or sample_sim_LC==True:
+					print ('An observed lightcurve is needed to normalize or sample the simulated light curve')
 					return 0
 
 
@@ -194,11 +223,73 @@ class lightcurve:
 
 
 		if not len(self.data):
-			return LC_sim_flux
+			return (sim_t_slices,LC_sim_flux)
 
 		else:	
 			return (T_bins_sim_LC_sampled, LC_sim_flux)
 			
+
+
+
+	def simulate_LC_Em_method(self, N_sim_LC, PSD_index, PDF_log_norm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+
+		#check int value for N_LC_sim_length_mult
+		if type(N_LC_sim_length_mult) != int:
+			print ('Please enter a integer value for N_LC_sim_length_mult')
+			return (0)
+
+
+		LC_sim_flux = []
+
+		for i in range(N_sim_LC):
+
+			b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.lognorm.pdf, (PDF_log_norm_param), tbin=1, 
+                                LClength=int(LC_sim_time_span/LC_sim_time_precision), maxFlux=[max(self.flux_LC_data/np.mean(self.flux_LC_data))], RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)
+			
+			b.time =  (b.time*LC_sim_time_precision)
+			
+			if not len(self.data):
+				#simply add non-sampled, non normalized LC if no obs. data is given
+				LC_sim_flux.append(b.flux)	
+
+				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
+				
+				if normalize_sim_LC==True or sample_sim_LC==True:
+					print ('An observed lightcurve is needed to normalize or sample the simulated light curve')
+					return 0
+
+			else:
+
+				if sample_sim_LC==True:
+
+					#sample LC
+					
+					bin_edges_low = self.mjd_data-LC_output_t_bin/2.
+					bin_edges_up = self.mjd_data+LC_output_t_bin/2.
+
+					T_bins_sim_LC_sampled = self.mjd_data
+
+					LC_sim_flux_sampled = stats.binned_statistic(b.time+min(self.mjd_data), b.flux, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
+
+				#add Gaussian Noise, following errorbar of observations
+				
+				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
+
+				if sample_sim_LC==True:
+					LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
+
+
+				#normalize LC
+				if normalize_sim_LC==True:
+
+					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(b.flux))*self.norm_factor + self.mean_LC_data
+					
+				#append LC to LC list
+				LC_sim_flux.append(LC_sim_flux_sampled)	
+
+				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
+
+		return (T_bins_sim_LC_sampled, LC_sim_flux)	
 
 
 
@@ -207,7 +298,7 @@ class lightcurve:
 	def simulate_realistic_LC(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
 
 		if not len(self.data):
-			print ('An observed lightcurve is needed to compute an sampled light curve')
+			print ('An observed lightcurve is needed to compute a realistic light curve')
 			return 0
 
 		LC_sim_flux_sampled = []
@@ -217,6 +308,21 @@ class lightcurve:
 		
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
+
+
+
+	def simulate_realistic_LC_Em_method(self, N_sim_LC, PSD_index, PDF_log_norm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
+
+		if not len(self.data):
+			print ('An observed lightcurve is needed to compute a realistic light curve')
+			return 0
+
+		LC_sim_flux_sampled = []
+		T_bins_sim_LC_sampled = []
+
+		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC_Em_method(N_sim_LC, PSD_index, PDF_log_norm_param, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
+
+		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
 
 
@@ -308,7 +414,7 @@ class lightcurve:
 
 
 
-	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
+	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None, Em_method=False, PDF_log_norm_param=None):
 
 		#beta = np.arange(0.7,2.1,0.05)
 		beta = np.arange(0.7,2.1,0.1)#for PSD uncertainty estimation
@@ -329,8 +435,8 @@ class lightcurve:
 			obs_mfvf_result = mfvf(np.array([self.mjd_data, self.flux_LC_data]).T, mfvf_min_time)
 			obs_freq = 1/obs_mfvf_result[:,0]
 			obs_mfvf = obs_mfvf_result[:,1]
-
-		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
+		
+		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, np.log10(obs_mfvf), 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
 		#obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.logspace(np.log10(np.min(obs_freq)), np.log10(np.max(obs_freq)), mfvf_binning)) #log binning
 
 		obs_freq_binned = ((obs_freq_edges[1:]+obs_freq_edges[:-1])/2.)
@@ -340,7 +446,14 @@ class lightcurve:
 		for beta_i in beta:
 			print ('Working on beta = ', beta_i, '...')
 
-			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			if Em_method==False:
+
+				sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			
+			else:
+
+				sim_LCs = self.simulate_realistic_LC_Em_method(N_sim_LC, beta_i, PDF_log_norm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+
 			
 			all_mfvf = []	
 			for l in range(len(sim_LCs[1])):
@@ -353,21 +466,22 @@ class lightcurve:
 
 				freq = 1/mfvf_result[:,0]
 				mfvf_value = mfvf_result[:,1]
-
-				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
+		
+				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, np.log10(mfvf_value), 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
 				#mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.logspace(np.log10(np.min(freq)), np.log10(np.max(freq)), mfvf_binning))#log binning
 
 				freq_binned = ((freq_edges[1:]+freq_edges[:-1])/2.)
 				
 				all_mfvf.append(mfvf_binned)
 
-				#plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+				#plt.plot(freq_binned, mfvf_binned, 'ko', alpha=0.3)
 
-			#plt.loglog(obs_freq_binned, obs_mfvf_binned, 'ro--')
+			#plt.plot(obs_freq_binned, obs_mfvf_binned, 'ro--')
 			#plt.ylabel('Power [u.a]')
 			#plt.xlabel('frequency [day$^{-1}$]')
 
 			#plt.show()
+
 
 			all_mfvf = np.array(all_mfvf)
 
@@ -388,7 +502,8 @@ class lightcurve:
 
 				#plt.axvline(x=obs_mfvf_binned[frequency], color='k')
 				#plt.hist(all_mfvf[:,frequency], density=True)
-				#plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),5e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
+				#plt.plot(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None], np.exp(kd.score_samples(np.linspace(0.1*np.mean(obs_mfvf_binned),1e1*np.mean(obs_mfvf_binned), 1000)[:,None])))
+				
 				#plt.show()
 				
 			log_like_list.append(log_like)
