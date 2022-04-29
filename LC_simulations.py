@@ -436,7 +436,7 @@ class lightcurve:
 			obs_freq = 1/obs_mfvf_result[:,0]
 			obs_mfvf = obs_mfvf_result[:,1]
 		
-		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, np.log10(obs_mfvf), 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
+		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
 		#obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.logspace(np.log10(np.min(obs_freq)), np.log10(np.max(obs_freq)), mfvf_binning)) #log binning
 
 		obs_freq_binned = ((obs_freq_edges[1:]+obs_freq_edges[:-1])/2.)
@@ -467,20 +467,20 @@ class lightcurve:
 				freq = 1/mfvf_result[:,0]
 				mfvf_value = mfvf_result[:,1]
 		
-				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, np.log10(mfvf_value), 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
+				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
 				#mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.logspace(np.log10(np.min(freq)), np.log10(np.max(freq)), mfvf_binning))#log binning
 
 				freq_binned = ((freq_edges[1:]+freq_edges[:-1])/2.)
 				
 				all_mfvf.append(mfvf_binned)
 
-				#plt.plot(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+				plt.plot(freq_binned, mfvf_binned, 'ko', alpha=0.3)
 
-			#plt.plot(obs_freq_binned, obs_mfvf_binned, 'ro--')
-			#plt.ylabel('Power [u.a]')
-			#plt.xlabel('frequency [day$^{-1}$]')
+			plt.plot(obs_freq_binned, obs_mfvf_binned, 'ro--')
+			plt.ylabel('Power [u.a]')
+			plt.xlabel('frequency [day$^{-1}$]')
 
-			#plt.show()
+			plt.show()
 
 
 			all_mfvf = np.array(all_mfvf)
