@@ -97,16 +97,16 @@ class lightcurve:
 
 		#fit is done on normalized flux as for small values the Lognom distr gives weird outputs...
 		norm_flux = self.flux_LC_data/np.mean(self.flux_LC_data)
-		hist, bin_edges = np.histogram(norm_flux, density=True)
+		hist, bin_edges = np.histogram(norm_flux, density=True, bins=5)
 		bin_center = (bin_edges[1:]+bin_edges[:-1])/2.
 
-		popt, pcov = curve_fit(scipy.stats.lognorm.pdf, bin_center, hist, maxfev=10000, p0=[np.mean(norm_flux), np.min(norm_flux), np.std(norm_flux)])
+		popt, pcov = curve_fit(scipy.stats.skewnorm.pdf, bin_center, hist, maxfev=10000, p0=[np.mean(norm_flux), np.min(norm_flux), np.std(norm_flux)])
 
 		if plot==True:
 
 			plt.figure()
-			plt.hist(self.flux_LC_data/np.mean(self.flux_LC_data), density=True)
-			plt.plot(np.linspace(0, 3*max(bin_center), 100), scipy.stats.lognorm.pdf(np.linspace(0, 3*max(bin_center), 100),*popt))
+			plt.hist(self.flux_LC_data/np.mean(self.flux_LC_data), density=True, bins=5)
+			plt.plot(np.linspace(0, 3*max(bin_center), 100), scipy.stats.skewnorm.pdf(np.linspace(0, 3*max(bin_center), 100),*popt))
 			plt.show()
 
 		return popt
@@ -243,14 +243,43 @@ class lightcurve:
 
 		for i in range(N_sim_LC):
 
-			b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.lognorm.pdf, (PDF_log_norm_param), tbin=1, 
-                                LClength=int(LC_sim_time_span/LC_sim_time_precision), maxFlux=[max(self.flux_LC_data/np.mean(self.flux_LC_data))], RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)
-			
+			#b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.lognorm.pdf, (PDF_log_norm_param), tbin=1, 
+            #                    LClength=int(LC_sim_time_span/LC_sim_time_precision), maxFlux=[max(self.flux_LC_data/np.mean(self.flux_LC_data))], RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)
+
+			b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.skewnorm, (PDF_log_norm_param), tbin=1, 
+                                LClength=int(LC_sim_time_span/LC_sim_time_precision), RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)			
+
 			b.time =  (b.time*LC_sim_time_precision)
+
+			'''
+			#cut LC to desired length
+			if N_LC_sim_length_mult == 1 :
+
+				b.flux = b.flux
+				b.time =  (b.time*LC_sim_time_precision)
+
+				#bin LC to desired bin width
+
+				cut_LC_binned = stats.binned_statistic(b.time, b.flux, 'mean', bins=(len(b.flux) * LC_sim_time_precision) / LC_output_t_bin)[0]
+
+
+			else :
+
+				LC_sim_length = int(N_LC_sim_length_mult*LC_sim_time_span/LC_sim_time_precision)
+				cut = random.randint(0, round(LC_sim_length/2))
+
+				b.flux = b.flux[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)+1]
+				b.time = np.arange(0, len(b.flux), 1) * LC_sim_time_precision
+
+				#bin LC to desired bin width
+
+				cut_LC_binned = stats.binned_statistic(b.time, b.flux, 'mean', bins=(len(b.flux) * LC_sim_time_precision) / LC_output_t_bin)[0]
+
+			'''
 			
 			if not len(self.data):
 				#simply add non-sampled, non normalized LC if no obs. data is given
-				LC_sim_flux.append(b.flux)	
+				LC_sim_flux.append(cut_LC_binned)	
 
 				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
 				
@@ -283,7 +312,7 @@ class lightcurve:
 				if normalize_sim_LC==True:
 
 					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(b.flux))*self.norm_factor + self.mean_LC_data
-					
+
 				#append LC to LC list
 				LC_sim_flux.append(LC_sim_flux_sampled)	
 
@@ -436,8 +465,9 @@ class lightcurve:
 			obs_freq = 1/obs_mfvf_result[:,0]
 			obs_mfvf = obs_mfvf_result[:,1]
 		
-		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
-		#obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.logspace(np.log10(np.min(obs_freq)), np.log10(np.max(obs_freq)), mfvf_binning)) #log binning
+		#obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.linspace(np.min(obs_freq), np.max(obs_freq), mfvf_binning))
+		obs_mfvf_binned, obs_freq_edges, _ = stats.binned_statistic(obs_freq, obs_mfvf, 'mean', bins=np.logspace(np.log10(np.min(obs_freq)), np.log10(np.max(obs_freq)), mfvf_binning)) #log binning
+
 
 		obs_freq_binned = ((obs_freq_edges[1:]+obs_freq_edges[:-1])/2.)
 
@@ -467,20 +497,23 @@ class lightcurve:
 				freq = 1/mfvf_result[:,0]
 				mfvf_value = mfvf_result[:,1]
 		
-				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
-				#mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.logspace(np.log10(np.min(freq)), np.log10(np.max(freq)), mfvf_binning))#log binning
+				#mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.linspace(np.min(freq), np.max(freq), mfvf_binning))
+				mfvf_binned, freq_edges, _ = stats.binned_statistic(freq, mfvf_value, 'mean', bins=np.logspace(np.log10(np.min(freq)), np.log10(np.max(freq)), mfvf_binning))#log binning
 
 				freq_binned = ((freq_edges[1:]+freq_edges[:-1])/2.)
 				
 				all_mfvf.append(mfvf_binned)
+		
 
-				plt.plot(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+				#plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
 
-			plt.plot(obs_freq_binned, obs_mfvf_binned, 'ro--')
-			plt.ylabel('Power [u.a]')
-			plt.xlabel('frequency [day$^{-1}$]')
+			#plt.loglog(obs_freq_binned, obs_mfvf_binned, 'ro--')
+			#plt.loglog(obs_freq, obs_mfvf, 'o')
 
-			plt.show()
+			#plt.ylabel('Power [u.a]')
+			#plt.xlabel('frequency [day$^{-1}$]')
+
+			#plt.show()
 
 
 			all_mfvf = np.array(all_mfvf)
