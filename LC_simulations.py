@@ -95,7 +95,7 @@ class lightcurve:
 			print ('An observed lightcurve is needed to fit the pdf')
 			return 0
 
-		#fit is done on normalized flux as for small values the Lognom distr gives weird outputs...
+		#fit is done on normalized flux as for small values the skew distr gives weird outputs...
 		norm_flux = self.flux_LC_data/np.mean(self.flux_LC_data)
 		hist, bin_edges = np.histogram(norm_flux, density=True, bins=5)
 		bin_center = (bin_edges[1:]+bin_edges[:-1])/2.
@@ -231,7 +231,7 @@ class lightcurve:
 
 
 
-	def simulate_LC_Em_method(self, N_sim_LC, PSD_index, PDF_log_norm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+	def simulate_LC_Em_method(self, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
 
 		#check int value for N_LC_sim_length_mult
 		if type(N_LC_sim_length_mult) != int:
@@ -243,43 +243,16 @@ class lightcurve:
 
 		for i in range(N_sim_LC):
 
-			#b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.lognorm.pdf, (PDF_log_norm_param), tbin=1, 
-            #                    LClength=int(LC_sim_time_span/LC_sim_time_precision), maxFlux=[max(self.flux_LC_data/np.mean(self.flux_LC_data))], RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)
-
-			b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.skewnorm, (PDF_log_norm_param), tbin=1, 
+			b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.skewnorm, (PDF_skewnorm_param), tbin=1, 
                                 LClength=int(LC_sim_time_span/LC_sim_time_precision), RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)			
 
 			b.time =  (b.time*LC_sim_time_precision)
 
-			'''
-			#cut LC to desired length
-			if N_LC_sim_length_mult == 1 :
-
-				b.flux = b.flux
-				b.time =  (b.time*LC_sim_time_precision)
-
-				#bin LC to desired bin width
-
-				cut_LC_binned = stats.binned_statistic(b.time, b.flux, 'mean', bins=(len(b.flux) * LC_sim_time_precision) / LC_output_t_bin)[0]
-
-
-			else :
-
-				LC_sim_length = int(N_LC_sim_length_mult*LC_sim_time_span/LC_sim_time_precision)
-				cut = random.randint(0, round(LC_sim_length/2))
-
-				b.flux = b.flux[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)+1]
-				b.time = np.arange(0, len(b.flux), 1) * LC_sim_time_precision
-
-				#bin LC to desired bin width
-
-				cut_LC_binned = stats.binned_statistic(b.time, b.flux, 'mean', bins=(len(b.flux) * LC_sim_time_precision) / LC_output_t_bin)[0]
-
-			'''
+			
 			
 			if not len(self.data):
 				#simply add non-sampled, non normalized LC if no obs. data is given
-				LC_sim_flux.append(cut_LC_binned)	
+				LC_sim_flux.append(b.flux)	
 
 				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
 				
@@ -340,7 +313,7 @@ class lightcurve:
 
 
 
-	def simulate_realistic_LC_Em_method(self, N_sim_LC, PSD_index, PDF_log_norm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
+	def simulate_realistic_LC_Em_method(self, N_sim_LC, PSD_index, PDF_skewnorm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
 
 		if not len(self.data):
 			print ('An observed lightcurve is needed to compute a realistic light curve')
@@ -349,7 +322,7 @@ class lightcurve:
 		LC_sim_flux_sampled = []
 		T_bins_sim_LC_sampled = []
 
-		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC_Em_method(N_sim_LC, PSD_index, PDF_log_norm_param, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
+		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC_Em_method(N_sim_LC, PSD_index, PDF_skewnorm_param, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
 
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
@@ -443,7 +416,7 @@ class lightcurve:
 
 
 
-	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None, Em_method=False, PDF_log_norm_param=None):
+	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None, Em_method=False, PDF_skewnorm_param=None):
 
 		#beta = np.arange(0.7,2.1,0.05)
 		beta = np.arange(0.7,2.1,0.1)#for PSD uncertainty estimation
@@ -482,7 +455,7 @@ class lightcurve:
 			
 			else:
 
-				sim_LCs = self.simulate_realistic_LC_Em_method(N_sim_LC, beta_i, PDF_log_norm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+				sim_LCs = self.simulate_realistic_LC_Em_method(N_sim_LC, beta_i, PDF_skewnorm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
 
 			
 			all_mfvf = []	
@@ -523,8 +496,7 @@ class lightcurve:
 			for frequency in range(len(freq_binned)):
 				
 				#using kde
-				#kd = KernelDensity(kernel='gaussian', bandwidth=0.2*np.mean(obs_mfvf_binned))
-				#kd = KernelDensity(kernel='gaussian', bandwidth=0.2*np.mean(mfvf_binned))
+				
 				kd = KernelDensity(kernel='gaussian', bandwidth=1.06*np.std(all_mfvf[:,frequency])*len(all_mfvf[:,frequency])**(-1/5))
 				
 				kd.fit(all_mfvf[:,frequency][:, None])
