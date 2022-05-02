@@ -471,15 +471,15 @@ class lightcurve:
 				all_mfvf.append(mfvf_binned)
 		
 
-				plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
+				#plt.loglog(freq_binned, mfvf_binned, 'ko', alpha=0.3)
 
-			plt.loglog(obs_freq_binned, obs_mfvf_binned, 'ro--')
-			plt.loglog(obs_freq, obs_mfvf, 'o')
+			#plt.loglog(obs_freq_binned, obs_mfvf_binned, 'ro--')
+			#plt.loglog(obs_freq, obs_mfvf, 'o')
 
-			plt.ylabel('Power [u.a]')
-			plt.xlabel('frequency [day$^{-1}$]')
+			#plt.ylabel('Power [u.a]')
+			#plt.xlabel('frequency [day$^{-1}$]')
 
-			plt.show()
+			#plt.show()
 
 
 			all_mfvf = np.array(all_mfvf)
