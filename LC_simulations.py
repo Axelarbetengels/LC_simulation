@@ -517,7 +517,6 @@ class lightcurve:
 		plt.xlabel(r'$\beta$')
 		plt.ylabel('Log-likelihood')
 		plt.savefig(output_fig_name)
-		plt.show()
 		print ('The best fit PSD index is: ',best_beta)
 		return best_beta
 
