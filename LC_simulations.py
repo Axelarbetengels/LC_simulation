@@ -460,8 +460,6 @@ class lightcurve:
 				flux_sim = sim_LCs[1][l]
 				xyf = np.array([mjd_sim, flux_sim]).T
 
-                print (flux_sim)
-
 				mfvf_result = mfvf(xyf, mfvf_min_time)
 
 				freq = 1/mfvf_result[:,0]
