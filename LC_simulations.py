@@ -395,6 +395,9 @@ class lightcurve:
 
 			best_fit_beta = self.estimate_PSD(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
 			fitted_beta.append(best_fit_beta)
+
+			np.savetxt('beta_'+str(true_beta)+fig_name+'.txt', fitted_beta)
+
 		
 		#get uncertainty bands
 		uncertainty_band = [np.percentile(fitted_beta, 100-68), np.percentile(fitted_beta, 68)]
@@ -408,7 +411,6 @@ class lightcurve:
 
 		#save fitted values in .txt file 
 		
-		np.savetxt('beta_'+str(true_beta)+fig_name+'.txt', fitted_beta)
 		
 		return true_beta, uncertainty_band 
 
@@ -538,6 +540,9 @@ class lightcurve:
 
 			best_fit_beta = self.estimate_PSD_MFVF(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, beta_range, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim, Em_method=Em_method, PDF_skewnorm_param=PDF_skewnorm_param)
 			fitted_beta.append(best_fit_beta)
+
+			np.savetxt('beta_'+str(true_beta)+fig_name+'.txt', fitted_beta)
+
 		
 		#get uncertainty bands
 		uncertainty_band = [np.percentile(fitted_beta, 100-68), np.percentile(fitted_beta, 68)]
@@ -550,7 +555,5 @@ class lightcurve:
 		plt.savefig(str(true_beta)+'.pdf')
 
 		#save fitted values in .txt file 
-		
-		np.savetxt('beta_'+str(true_beta)+fig_name+'.txt', fitted_beta)
-		
+				
 		return true_beta, uncertainty_band 
