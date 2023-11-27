@@ -43,6 +43,18 @@ def PL(v,A,beta):
     return p
 
 
+def rebin_LC(t_flux, flux, bin_center, bin_width):
+    
+    binned_flux = []
+
+    for i in range(len(bin_center)):
+    	mean_i = np.mean(flux[(t_flux>bin_center[i]-bin_width/2)*
+    						  (t_flux<bin_center[i]+bin_width/2)])
+    	binned_flux.append(mean_i)
+
+    return binned_flux
+
+
 
 class lightcurve:
 
@@ -197,13 +209,15 @@ class lightcurve:
 
 					T_bins_sim_LC_sampled = self.mjd_data
 
-					LC_sim_flux_sampled = stats.binned_statistic(sim_t_slices+min(self.mjd_data), cut_LC, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
+					#LC_sim_flux_sampled = stats.binned_statistic(sim_t_slices+min(self.mjd_data), cut_LC, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]					
+
+					LC_sim_flux_sampled = rebin_LC(sim_t_slices+min(self.mjd_data), cut_LC, self.mjd_data, LC_output_t_bin)
 
 
 				#add Gaussian Noise, following errorbar of observations
 				
 				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
-
+				
 				if sample_sim_LC==True:
 					LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
 
