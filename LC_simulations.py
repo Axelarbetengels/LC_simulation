@@ -285,7 +285,9 @@ class lightcurve:
 
 					T_bins_sim_LC_sampled = self.mjd_data
 
-					LC_sim_flux_sampled = stats.binned_statistic(b.time+min(self.mjd_data), b.flux, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
+					#LC_sim_flux_sampled = stats.binned_statistic(b.time+min(self.mjd_data), b.flux, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
+
+					LC_sim_flux_sampled = rebin_LC(sim_t_slices+min(self.mjd_data), cut_LC, self.mjd_data, LC_output_t_bin)
 
 				#add Gaussian Noise, following errorbar of observations
 				
