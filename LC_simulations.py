@@ -52,7 +52,7 @@ def rebin_LC(t_flux, flux, bin_center, bin_width):
     						  (t_flux<bin_center[i]+bin_width/2)])
     	binned_flux.append(mean_i)
 
-    return binned_flux
+    return np.asarray(binned_flux)
 
 
 
@@ -204,8 +204,8 @@ class lightcurve:
 					
 					#sample LC
 					
-					bin_edges_low = self.mjd_data-LC_output_t_bin/2.
-					bin_edges_up = self.mjd_data+LC_output_t_bin/2.
+					#bin_edges_low = self.mjd_data-LC_output_t_bin/2.
+					#bin_edges_up = self.mjd_data+LC_output_t_bin/2.
 
 					T_bins_sim_LC_sampled = self.mjd_data
 
@@ -258,7 +258,7 @@ class lightcurve:
 		for i in range(N_sim_LC):
 
 			b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.skewnorm, (PDF_skewnorm_param), tbin=1, 
-                                LClength=int(LC_sim_time_span/LC_sim_time_precision), RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)			
+                                LClength=int(LC_sim_time_span/LC_sim_time_precision)+1, RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)			
 
 			b.time =  (b.time*LC_sim_time_precision)
 
@@ -280,15 +280,16 @@ class lightcurve:
 
 					#sample LC
 					
-					bin_edges_low = self.mjd_data-LC_output_t_bin/2.
-					bin_edges_up = self.mjd_data+LC_output_t_bin/2.
+					#bin_edges_low = self.mjd_data-LC_output_t_bin/2.
+					#bin_edges_up = self.mjd_data+LC_output_t_bin/2.
 
 					T_bins_sim_LC_sampled = self.mjd_data
 
 					#LC_sim_flux_sampled = stats.binned_statistic(b.time+min(self.mjd_data), b.flux, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
 
-					LC_sim_flux_sampled = rebin_LC(sim_t_slices+min(self.mjd_data), cut_LC, self.mjd_data, LC_output_t_bin)
-
+					LC_sim_flux_sampled = rebin_LC(b.time+min(self.mjd_data), b.flux, self.mjd_data, LC_output_t_bin)
+					
+				
 				#add Gaussian Noise, following errorbar of observations
 				
 				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
