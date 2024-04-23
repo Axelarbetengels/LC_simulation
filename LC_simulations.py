@@ -126,6 +126,8 @@ class lightcurve:
 	
 	def simulate_LC_individual(self, i_run, N_sim_LC, PSD_index, freq, LC_sim_time_span, LC_sim_length, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
 
+		#Simulates a single LC which is then run in parallel 
+
 		fourier_coeffs = gen_fourier_coeff(freq, PSD_index)
 
 		#inverse fourier, produce simulated LC
