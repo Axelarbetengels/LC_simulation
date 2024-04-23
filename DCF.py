@@ -2,7 +2,7 @@ import numpy as np
 
 
 
-def DCF(t, mjd_1, mjd_2, flux_1, flux_2, delta_t):
+def DCF(t, mjd_1, mjd_2, flux_1, flux_2, delta_t,sigma=False):
 
 	UDCF = []
 
@@ -30,12 +30,16 @@ def DCF(t, mjd_1, mjd_2, flux_1, flux_2, delta_t):
 	UDCF = np.array(UDCF)
 	DCF = np.sum(UDCF)/len(UDCF)
 
+	sigma_DCF = np.sqrt(np.sum((UDCF-DCF)**2))/(len(UDCF)-1)
 
-	return (DCF)
+	if sigma:
+		return (DCF, sigma_DCF)
+	else:
+		return (DCF)
 
 
 
-def calc_DCF_LC(LC1, LC2, t_min, t_max, delta_t):
+def calc_DCF_LC(LC1, LC2, t_min, t_max, delta_t,sigma=False):
 
 	N_LC_simulated = len(LC1[1])
 
@@ -51,16 +55,27 @@ def calc_DCF_LC(LC1, LC2, t_min, t_max, delta_t):
 
 	t_lag = np.arange(t_min, t_max, delta_t)
 	DCFs = []
+	DCFs_err = []
 
 	for i in range(N_LC_simulated):
 		dcfi = []
+		dcfi_err= []
 		
 		for lag in t_lag:
 
-			dcfi.append((DCF(lag, t_LC1, t_LC2, f_LC1[i], f_LC2[i], delta_t)))
+			if sigma:
+				dcfi.append((DCF(lag, t_LC1, t_LC2, f_LC1[i], f_LC2[i], delta_t,sigma)[0]))
+				dcfi_err.append((DCF(lag, t_LC1, t_LC2, f_LC1[i], f_LC2[i], delta_t,sigma)[1]))
+			else:
+				dcfi.append((DCF(lag, t_LC1, t_LC2, f_LC1[i], f_LC2[i], delta_t)))
 
 		DCFs.append(dcfi)
-		print ('DCF of LC pair ', i+1, ' out of' , N_LC_simulated, ' computed!')
+		DCFs_err.append(dcfi_err)
+		
+		if (i+1)%100==0:
+			print ('DCF of LC pair ', i+1, ' out of' , N_LC_simulated, ' computed!')
 	
-	return (t_lag, np.array(DCFs))
-
+	if sigma:
+		return (t_lag, np.array(DCFs), np.array(DCFs_err))
+	else:
+		return (t_lag, np.array(DCFs))

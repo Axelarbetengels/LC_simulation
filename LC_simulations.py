@@ -11,7 +11,7 @@ from sklearn.neighbors import KernelDensity
 from scipy.optimize import curve_fit
 import scipy
 import DELCgen
-
+from joblib import Parallel, delayed
 
 def gen_random_numbers_normaldistr(N_numbers):
 
@@ -123,10 +123,96 @@ class lightcurve:
 
 		return popt
 
+	
+	def simulate_LC_individual(self, i_run, N_sim_LC, PSD_index, freq, LC_sim_time_span, LC_sim_length, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+
+		fourier_coeffs = gen_fourier_coeff(freq, PSD_index)
+
+		#inverse fourier, produce simulated LC
+		full_LC = ifft(fourier_coeffs).real
+		
+		#cut LC to desired length
+		if N_LC_sim_length_mult == 1 :
+
+			cut_LC = full_LC
+
+			#bin LC to desired bin width
+			sim_t_slices = np.arange(0, len(full_LC), 1) * LC_sim_time_precision
+
+			cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
 
 
-	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+		else :
 
+			cut = random.randint(0, round(LC_sim_length/2))
+
+			cut_LC = full_LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)+1]
+
+			#bin LC to desired bin width
+			sim_t_slices = np.arange(0, len(cut_LC), 1) * LC_sim_time_precision
+
+			cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+
+		
+		self.sim_LC_Npoints = len(cut_LC_binned)
+
+		
+		
+		if not len(self.data):
+			#simply add non-sampled, non normalized LC if no obs. data is given
+			LC_sim_flux.append(cut_LC_binned)	
+			
+			if normalize_sim_LC==True or sample_sim_LC==True:
+				print ('An observed lightcurve is needed to normalize or sample the simulated light curve')
+				return 0
+
+
+
+		else:
+			#sample and normalize LC
+
+
+			if sample_sim_LC==False:
+				
+				T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+LC_sim_time_span, self.sim_LC_Npoints)
+
+				LC_sim_flux_sampled = cut_LC_binned
+
+
+			if sample_sim_LC==True:
+				
+				#sample LC
+				
+				#bin_edges_low = self.mjd_data-LC_output_t_bin/2.
+				#bin_edges_up = self.mjd_data+LC_output_t_bin/2.
+
+				T_bins_sim_LC_sampled = self.mjd_data
+
+				#LC_sim_flux_sampled = stats.binned_statistic(sim_t_slices+min(self.mjd_data), cut_LC, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]					
+
+				LC_sim_flux_sampled = rebin_LC(sim_t_slices+min(self.mjd_data), cut_LC, self.mjd_data, LC_output_t_bin)
+
+
+			#add Gaussian Noise, following errorbar of observations
+			
+			self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
+			
+			if sample_sim_LC==True:
+				LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
+
+
+			#normalize LC
+			if normalize_sim_LC==True:
+
+				LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(cut_LC_binned))*self.norm_factor + self.mean_LC_data
+
+
+			return(LC_sim_flux_sampled)
+
+
+
+	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs, normalize_sim_LC=False, sample_sim_LC=False):
+		
 		#Following Timmer & Koenig, 1995, Astronomy & Astrophysics, 300, 707
 		#everything is in unit of [day]
 
@@ -140,181 +226,282 @@ class lightcurve:
 
 		freq = np.arange(1, LC_sim_length/2 + 1) / (LC_sim_length * LC_sim_time_precision)
 
-		LC_sim_flux = []
 
-		for i in range(N_sim_LC):
+		T_bins_sim_LC_sampled = self.mjd_data
 
+		#joblib.Parallel writes the output of all N_sim_LC jobs directly into a list
+		print(f"Now running {N_sim_LC} LC simulations in parallel on {n_jobs} CPUs!")
+		LC_sim_flux = Parallel(n_jobs=n_jobs)(delayed(self.simulate_LC_individual)(i, N_sim_LC, PSD_index, freq, LC_sim_time_span, LC_sim_length, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True) for i in range(N_sim_LC))
 
-			fourier_coeffs = gen_fourier_coeff(freq, PSD_index)
-
-			#inverse fourier, produce simulated LC
-			full_LC = ifft(fourier_coeffs).real
-			
-			#cut LC to desired length
-			if N_LC_sim_length_mult == 1 :
-
-				cut_LC = full_LC
-
-				#bin LC to desired bin width
-				sim_t_slices = np.arange(0, len(full_LC), 1) * LC_sim_time_precision
-
-				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
-
-
-			else :
-
-				cut = random.randint(0, round(LC_sim_length/2))
-
-				cut_LC = full_LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)+1]
-
-				#bin LC to desired bin width
-				sim_t_slices = np.arange(0, len(cut_LC), 1) * LC_sim_time_precision
-
-				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
-
-			
-			self.sim_LC_Npoints = len(cut_LC_binned)
-
-			
-			
-			if not len(self.data):
-				#simply add non-sampled, non normalized LC if no obs. data is given
-				LC_sim_flux.append(cut_LC_binned)	
-
-				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
-				
-				if normalize_sim_LC==True or sample_sim_LC==True:
-					print ('An observed lightcurve is needed to normalize or sample the simulated light curve')
-					return 0
-
-
-
-			else:
-				#sample and normalize LC
-
-
-				if sample_sim_LC==False:
-					
-					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+LC_sim_time_span, self.sim_LC_Npoints)
-
-					LC_sim_flux_sampled = cut_LC_binned
-
-
-				if sample_sim_LC==True:
-					
-					#sample LC
-					
-					#bin_edges_low = self.mjd_data-LC_output_t_bin/2.
-					#bin_edges_up = self.mjd_data+LC_output_t_bin/2.
-
-					T_bins_sim_LC_sampled = self.mjd_data
-
-					#LC_sim_flux_sampled = stats.binned_statistic(sim_t_slices+min(self.mjd_data), cut_LC, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]					
-
-					LC_sim_flux_sampled = rebin_LC(sim_t_slices+min(self.mjd_data), cut_LC, self.mjd_data, LC_output_t_bin)
-
-
-				#add Gaussian Noise, following errorbar of observations
-				
-				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
-				
-				if sample_sim_LC==True:
-					LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
-
-
-				#normalize LC
-				if normalize_sim_LC==True:
-
-					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(cut_LC_binned))*self.norm_factor + self.mean_LC_data
-
-				#append LC to LC list
-				LC_sim_flux.append(LC_sim_flux_sampled)	
-
-				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
-			
-			
-			
-
+		return (T_bins_sim_LC_sampled, LC_sim_flux)	
+	
 
 		if not len(self.data):
 			return (sim_t_slices,LC_sim_flux)
 
 		else:	
 			return (T_bins_sim_LC_sampled, LC_sim_flux)
+
+
+	### OLD function running the regular LC simulation in line ###
+
+#	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+#
+#		#Following Timmer & Koenig, 1995, Astronomy & Astrophysics, 300, 707
+#		#everything is in unit of [day]
+#
+#		#check int value for N_LC_sim_length_mult
+#		if type(N_LC_sim_length_mult) != int:
+#			print ('Please enter a integer value for N_LC_sim_length_mult')
+#			return (0)
+#
+#		LC_sim_length = LC_sim_time_span / LC_sim_time_precision
+#		LC_sim_length *= N_LC_sim_length_mult
+#
+#		freq = np.arange(1, LC_sim_length/2 + 1) / (LC_sim_length * LC_sim_time_precision)
+#
+#		LC_sim_flux = []
+#
+#		for i in range(N_sim_LC):
+#
+#
+#			fourier_coeffs = gen_fourier_coeff(freq, PSD_index)
+#
+#			#inverse fourier, produce simulated LC
+#			full_LC = ifft(fourier_coeffs).real
+#			
+#			#cut LC to desired length
+#			if N_LC_sim_length_mult == 1 :
+#
+#				cut_LC = full_LC
+#
+#				#bin LC to desired bin width
+#				sim_t_slices = np.arange(0, len(full_LC), 1) * LC_sim_time_precision
+#
+#				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+#
+#
+#			else :
+#
+#				cut = random.randint(0, round(LC_sim_length/2))
+#
+#				cut_LC = full_LC[cut:int(cut+LC_sim_length/N_LC_sim_length_mult)+1]
+#
+#				#bin LC to desired bin width
+#				sim_t_slices = np.arange(0, len(cut_LC), 1) * LC_sim_time_precision
+#
+#				cut_LC_binned = stats.binned_statistic(sim_t_slices, cut_LC, 'mean', bins=(len(cut_LC) * LC_sim_time_precision) / LC_output_t_bin)[0]
+#
+#			
+#			self.sim_LC_Npoints = len(cut_LC_binned)
+#
+#			
+#			
+#			if not len(self.data):
+#				#simply add non-sampled, non normalized LC if no obs. data is given
+#				LC_sim_flux.append(cut_LC_binned)	
+#
+#				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
+#				
+#				if normalize_sim_LC==True or sample_sim_LC==True:
+#					print ('An observed lightcurve is needed to normalize or sample the simulated light curve')
+#					return 0
+#
+#
+#
+#			else:
+#				#sample and normalize LC
+#
+#
+#				if sample_sim_LC==False:
+#					
+#					T_bins_sim_LC_sampled = np.linspace(min(self.mjd_data), min(self.mjd_data)+LC_sim_time_span, self.sim_LC_Npoints)
+#
+#					LC_sim_flux_sampled = cut_LC_binned
+#
+#
+#				if sample_sim_LC==True:
+#					
+#					#sample LC
+#					
+#					#bin_edges_low = self.mjd_data-LC_output_t_bin/2.
+#					#bin_edges_up = self.mjd_data+LC_output_t_bin/2.
+#
+#					T_bins_sim_LC_sampled = self.mjd_data
+#
+#					#LC_sim_flux_sampled = stats.binned_statistic(sim_t_slices+min(self.mjd_data), cut_LC, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]					
+#
+#					LC_sim_flux_sampled = rebin_LC(sim_t_slices+min(self.mjd_data), cut_LC, self.mjd_data, LC_output_t_bin)
+#
+#
+#				#add Gaussian Noise, following errorbar of observations
+#				
+#				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
+#				
+#				if sample_sim_LC==True:
+#					LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
+#
+#
+#				#normalize LC
+#				if normalize_sim_LC==True:
+#
+#					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(cut_LC_binned))*self.norm_factor + self.mean_LC_data
+#
+#				#append LC to LC list
+#				LC_sim_flux.append(LC_sim_flux_sampled)	
+#
+#				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
+#			
+#			
+#			
+#
+#
+#		if not len(self.data):
+#			return (sim_t_slices,LC_sim_flux)
+#
+#		else:	
+#			return (T_bins_sim_LC_sampled, LC_sim_flux)
 			
 
+	### NEW functions running the EM LC siomulations in parallel
+
+	def simulate_LC_Em_method_individual(self,i_run, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+		
+		#Simulates a single LC which is then run in parallel 
+
+		b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.skewnorm, (PDF_skewnorm_param), tbin=1, 
+                                LClength=int(LC_sim_time_span/LC_sim_time_precision)+1, RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)			
+
+		b.time =  (b.time*LC_sim_time_precision)
+
+		
+		if not len(self.data):
+			#simply add non-sampled, non normalized LC if no obs. data is given
+			LC_sim_flux.append(b.flux)	
+
+			if normalize_sim_LC==True or sample_sim_LC==True:
+				print ('An observed lightcurve is needed to normalize or sample the simulated light curve')
+				return 0
+
+		else:
+
+			if sample_sim_LC==True:
+
+				#sample LC
+				
+				#bin_edges_low = self.mjd_data-LC_output_t_bin/2.
+				#bin_edges_up = self.mjd_data+LC_output_t_bin/2.
+
+				T_bins_sim_LC_sampled = self.mjd_data
+
+				#LC_sim_flux_sampled = stats.binned_statistic(b.time+min(self.mjd_data), b.flux, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
+				LC_sim_flux_sampled = rebin_LC(b.time+min(self.mjd_data), b.flux, self.mjd_data, LC_output_t_bin)
+
+			#add Gaussian Noise, following errorbar of observations
+			
+			self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
+
+			if sample_sim_LC==True:
+				LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
+
+			#normalize LC
+			if normalize_sim_LC==True:
+
+				LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(b.flux))*self.norm_factor + self.mean_LC_data
+
+		return (LC_sim_flux_sampled)
 
 
-	def simulate_LC_Em_method(self, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+	def simulate_LC_Em_method(self, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs, normalize_sim_LC=False, sample_sim_LC=False):
+		
+		#Runs the simulate_LC_Em_method_individual() function for N_sim_LC times and returns the full array of LCs
+		#The new variable n_jobs defines the number of CPUs that should be used
 
-		#check int value for N_LC_sim_length_mult
 		if type(N_LC_sim_length_mult) != int:
 			print ('Please enter a integer value for N_LC_sim_length_mult')
 			return (0)
 
-
-		LC_sim_flux = []
-
-		for i in range(N_sim_LC):
-
-			b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.skewnorm, (PDF_skewnorm_param), tbin=1, 
-                                LClength=int(LC_sim_time_span/LC_sim_time_precision)+1, RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)			
-
-			b.time =  (b.time*LC_sim_time_precision)
-
-			
-			
-			if not len(self.data):
-				#simply add non-sampled, non normalized LC if no obs. data is given
-				LC_sim_flux.append(b.flux)	
-
-				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
-				
-				if normalize_sim_LC==True or sample_sim_LC==True:
-					print ('An observed lightcurve is needed to normalize or sample the simulated light curve')
-					return 0
-
-			else:
-
-				if sample_sim_LC==True:
-
-					#sample LC
-					
-					#bin_edges_low = self.mjd_data-LC_output_t_bin/2.
-					#bin_edges_up = self.mjd_data+LC_output_t_bin/2.
-
-					T_bins_sim_LC_sampled = self.mjd_data
-
-					#LC_sim_flux_sampled = stats.binned_statistic(b.time+min(self.mjd_data), b.flux, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
-
-					LC_sim_flux_sampled = rebin_LC(b.time+min(self.mjd_data), b.flux, self.mjd_data, LC_output_t_bin)
-					
-				
-				#add Gaussian Noise, following errorbar of observations
-				
-				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
-
-				if sample_sim_LC==True:
-					LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
-
-
-				#normalize LC
-				if normalize_sim_LC==True:
-
-					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(b.flux))*self.norm_factor + self.mean_LC_data
-
-				#append LC to LC list
-				LC_sim_flux.append(LC_sim_flux_sampled)	
-
-				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
-
+		T_bins_sim_LC_sampled = self.mjd_data
+		
+		#joblib.Parallel writes the output of all N_sim_LC jobs directly into a list
+		print(f"Now running {N_sim_LC} LC simulations in parallel on {n_jobs} CPUs!")
+		LC_sim_flux = Parallel(n_jobs=n_jobs)(delayed(self.simulate_LC_Em_method_individual)(i, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True) for i in range(N_sim_LC))
+		
 		return (T_bins_sim_LC_sampled, LC_sim_flux)	
 
 
+### OLD function running the EM LC simulation in line ###
+
+#	def simulate_LC_Em_method(self, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
+#
+#		#check int value for N_LC_sim_length_mult
+#		if type(N_LC_sim_length_mult) != int:
+#			print ('Please enter a integer value for N_LC_sim_length_mult')
+#			return (0)
+#
+#
+#		LC_sim_flux = []
+#
+#		for i in range(N_sim_LC):
+#
+#			b = DELCgen.Simulate_DE_Lightcurve(PL, (1,PSD_index), scipy.stats.skewnorm, (PDF_skewnorm_param), tbin=1, 
+#                               LClength=int(LC_sim_time_span/LC_sim_time_precision)+1, RedNoiseL=N_LC_sim_length_mult,aliasTbin=1)			
+#
+#			b.time =  (b.time*LC_sim_time_precision)
+#
+#			
+#			
+#			if not len(self.data):
+#				#simply add non-sampled, non normalized LC if no obs. data is given
+#				LC_sim_flux.append(b.flux)	
+#
+#				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
+#				
+#				if normalize_sim_LC==True or sample_sim_LC==True:
+#					print ('An observed lightcurve is needed to normalize or sample the simulated light curve')
+#					return 0
+#
+#			else:
+#
+#				if sample_sim_LC==True:
+#
+#					#sample LC
+#					
+#					#bin_edges_low = self.mjd_data-LC_output_t_bin/2.
+#					#bin_edges_up = self.mjd_data+LC_output_t_bin/2.
+#
+#					T_bins_sim_LC_sampled = self.mjd_data
+#
+#					#LC_sim_flux_sampled = stats.binned_statistic(b.time+min(self.mjd_data), b.flux, 'mean', bins=np.append(bin_edges_low[0], bin_edges_up))[0]
+#
+#					LC_sim_flux_sampled = rebin_LC(b.time+min(self.mjd_data), b.flux, self.mjd_data, LC_output_t_bin)
+#					
+#				
+#				#add Gaussian Noise, following errorbar of observations
+#				
+#				self.norm_factor = np.sqrt( (self.std_LC_data**2-np.mean(self.flux_error_LC_data)**2)/np.std(LC_sim_flux_sampled)**2 )
+#
+#				if sample_sim_LC==True:
+#					LC_sim_flux_sampled = np.random.normal(LC_sim_flux_sampled, self.norm_factor**-1 * self.flux_error_LC_data, len(LC_sim_flux_sampled))
+#
+#
+#				#normalize LC
+#				if normalize_sim_LC==True:
+#
+#					LC_sim_flux_sampled = (LC_sim_flux_sampled-np.mean(b.flux))*self.norm_factor + self.mean_LC_data
+#
+#				#append LC to LC list
+#				LC_sim_flux.append(LC_sim_flux_sampled)	
+#
+#				print ('Lightcurve ', i+1, ' out of ', N_sim_LC, ' simulated!')
+#
+#		return (T_bins_sim_LC_sampled, LC_sim_flux)	
 
 
 
-	def simulate_realistic_LC(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
+
+
+	def simulate_realistic_LC(self, N_sim_LC, PSD_index, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs):
 
 		if not len(self.data):
 			print ('An observed lightcurve is needed to compute a realistic light curve')
@@ -323,14 +510,14 @@ class lightcurve:
 		LC_sim_flux_sampled = []
 		T_bins_sim_LC_sampled = []
 
-		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
+		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC(N_sim_LC, PSD_index, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs, normalize_sim_LC=True, sample_sim_LC=True)
 		
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
 
 
 
-	def simulate_realistic_LC_Em_method(self, N_sim_LC, PSD_index, PDF_skewnorm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin):
+	def simulate_realistic_LC_Em_method(self, N_sim_LC, PSD_index, PDF_skewnorm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs):
 
 		if not len(self.data):
 			print ('An observed lightcurve is needed to compute a realistic light curve')
@@ -339,14 +526,14 @@ class lightcurve:
 		LC_sim_flux_sampled = []
 		T_bins_sim_LC_sampled = []
 
-		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC_Em_method(N_sim_LC, PSD_index, PDF_skewnorm_param, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True)
+		T_bins_sim_LC_sampled, LC_sim_flux_sampled = self.simulate_LC_Em_method(N_sim_LC, PSD_index, PDF_skewnorm_param, self.data_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs, normalize_sim_LC=True, sample_sim_LC=True)
 
 		return (T_bins_sim_LC_sampled, LC_sim_flux_sampled)
 
 
 
 
-	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
+	def estimate_PSD(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs, output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None):
 
 		#beta = np.arange(0.7,2.1,0.05)
 		beta = np.arange(0.6,2.1,0.1)#for PSD uncertainty estimation
@@ -358,7 +545,7 @@ class lightcurve:
 		for beta_i in beta:
 			print ('Working on beta = ', beta_i, '...')
 
-			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs)
 			
 			freq, sim_PSDs = calc_sim_PSD(sim_LCs, self.mjd_data)
 
@@ -395,7 +582,7 @@ class lightcurve:
 		return best_beta
 
 
-	def estimate_PSD_uncertainty(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, fig_name):
+	def estimate_PSD_uncertainty(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, fig_name, n_jobs):
 		#estimate the PSD uncertainties with a Neyman construction
 
 		fitted_beta = []
@@ -406,11 +593,11 @@ class lightcurve:
 		for i in range(n_fit):
 			
 			#create LC with known PSD index
-			true_beta_sim_LC = self.simulate_realistic_LC(1, true_beta, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			true_beta_sim_LC = self.simulate_realistic_LC(1, true_beta, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs)
 			true_beta_mjd_sim = true_beta_sim_LC[0]
 			true_beta_flux_sim = true_beta_sim_LC[1][0]
 
-			best_fit_beta = self.estimate_PSD(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
+			best_fit_beta = self.estimate_PSD(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim)
 			fitted_beta.append(best_fit_beta)
 
 			np.savetxt('beta_'+str(true_beta)+fig_name+'.txt', fitted_beta)
@@ -432,10 +619,7 @@ class lightcurve:
 		return true_beta, uncertainty_band 
 
 
-
-
-
-	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, beta_range=np.arange(1.0,3.0,0.1), output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None, Em_method=False, PDF_skewnorm_param=None):
+	def estimate_PSD_MFVF(self, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, n_jobs, beta_range=np.arange(1.0,3.0,0.1), output_fig_name='SuF_vs_pwlindex.pdf', true_beta_LC_mjd=None, true_beta_LC_flux=None, Em_method=False, PDF_skewnorm_param=None):
 
 		suf_list = []
 		
@@ -463,11 +647,11 @@ class lightcurve:
 
 			if Em_method==False:
 
-				sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+				sim_LCs = self.simulate_realistic_LC(N_sim_LC, beta_i, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs)
 			
 			else:
 
-				sim_LCs = self.simulate_realistic_LC_Em_method(N_sim_LC, beta_i, PDF_skewnorm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+				sim_LCs = self.simulate_realistic_LC_Em_method(N_sim_LC, beta_i, PDF_skewnorm_param, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs)
 
 			
 			all_mfvf = []	
@@ -541,7 +725,7 @@ class lightcurve:
 
 
 
-	def estimate_PSD_uncertainty_MFVF(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, fig_name, beta_range=np.arange(1.0,3.0,0.1), Em_method=False, PDF_skewnorm_param=None):
+	def estimate_PSD_uncertainty_MFVF(self, true_beta, N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, fig_name, n_jobs, beta_range=np.arange(1.0,3.0,0.1), Em_method=False, PDF_skewnorm_param=None):
 
 		fitted_beta = []
 		n_fit = 200
@@ -551,11 +735,11 @@ class lightcurve:
 		for i in range(n_fit):
 			
 			#create LC with known PSD index
-			true_beta_sim_LC = self.simulate_realistic_LC(1, true_beta, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin)
+			true_beta_sim_LC = self.simulate_realistic_LC(1, true_beta, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs)
 			true_beta_mjd_sim = true_beta_sim_LC[0]
 			true_beta_flux_sim = true_beta_sim_LC[1][0]
 
-			best_fit_beta = self.estimate_PSD_MFVF(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, beta_range, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim, Em_method=Em_method, PDF_skewnorm_param=PDF_skewnorm_param)
+			best_fit_beta = self.estimate_PSD_MFVF(N_sim_LC, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, mfvf_min_time, mfvf_binning, n_jobs, beta_range, output_fig_name=fig_name+str(i)+'.png', true_beta_LC_mjd=true_beta_mjd_sim, true_beta_LC_flux=true_beta_flux_sim, Em_method=Em_method, PDF_skewnorm_param=PDF_skewnorm_param)
 			fitted_beta.append(best_fit_beta)
 
 			np.savetxt('beta_'+str(true_beta)+fig_name+'.txt', fitted_beta)
