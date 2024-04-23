@@ -123,7 +123,9 @@ class lightcurve:
 
 		return popt
 
-	
+
+	### NEW functions running the regular LC simulations in parallel
+
 	def simulate_LC_individual(self, i_run, N_sim_LC, PSD_index, freq, LC_sim_time_span, LC_sim_length, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
 
 		#Simulates a single LC which is then run in parallel 
@@ -214,6 +216,9 @@ class lightcurve:
 
 
 	def simulate_LC(self, N_sim_LC, PSD_index, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, n_jobs, normalize_sim_LC=False, sample_sim_LC=False):
+
+		#Runs the simulate_LC_individual() function for N_sim_LC times and returns the full array of LCs
+		#The new variable n_jobs defines the number of CPUs that should be used
 		
 		#Following Timmer & Koenig, 1995, Astronomy & Astrophysics, 300, 707
 		#everything is in unit of [day]
@@ -233,11 +238,9 @@ class lightcurve:
 
 		#joblib.Parallel writes the output of all N_sim_LC jobs directly into a list
 		print(f"Now running {N_sim_LC} LC simulations in parallel on {n_jobs} CPUs!")
+
 		LC_sim_flux = Parallel(n_jobs=n_jobs)(delayed(self.simulate_LC_individual)(i, N_sim_LC, PSD_index, freq, LC_sim_time_span, LC_sim_length, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True) for i in range(N_sim_LC))
-
-		return (T_bins_sim_LC_sampled, LC_sim_flux)	
 	
-
 		if not len(self.data):
 			return (sim_t_slices,LC_sim_flux)
 
@@ -365,7 +368,7 @@ class lightcurve:
 #			return (T_bins_sim_LC_sampled, LC_sim_flux)
 			
 
-	### NEW functions running the EM LC siomulations in parallel
+	### NEW functions running the EM LC simulations in parallel
 
 	def simulate_LC_Em_method_individual(self,i_run, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
 		
@@ -427,12 +430,13 @@ class lightcurve:
 		
 		#joblib.Parallel writes the output of all N_sim_LC jobs directly into a list
 		print(f"Now running {N_sim_LC} LC simulations in parallel on {n_jobs} CPUs!")
+
 		LC_sim_flux = Parallel(n_jobs=n_jobs)(delayed(self.simulate_LC_Em_method_individual)(i, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=True, sample_sim_LC=True) for i in range(N_sim_LC))
 		
 		return (T_bins_sim_LC_sampled, LC_sim_flux)	
 
 
-### OLD function running the EM LC simulation in line ###
+	### OLD function running the EM LC simulations in line ###
 
 #	def simulate_LC_Em_method(self, N_sim_LC, PSD_index, PDF_skewnorm_param, LC_sim_time_span, N_LC_sim_length_mult, LC_sim_time_precision, LC_output_t_bin, normalize_sim_LC=False, sample_sim_LC=False):
 #
