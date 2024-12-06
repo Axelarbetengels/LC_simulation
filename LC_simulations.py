@@ -109,7 +109,7 @@ class lightcurve:
 
 		#fit is done on normalized flux as for small values the skew distr gives weird outputs...
 		norm_flux = self.flux_LC_data/np.mean(self.flux_LC_data)
-		hist, bin_edges = np.histogram(norm_flux, density=True, bins=5)
+		hist, bin_edges = np.histogram(norm_flux, density=True, bins=round(len(self.flux_LC_data)/2))
 		bin_center = (bin_edges[1:]+bin_edges[:-1])/2.
 
 		popt, pcov = curve_fit(scipy.stats.skewnorm.pdf, bin_center, hist, maxfev=10000, p0=[np.mean(norm_flux), np.min(norm_flux), np.std(norm_flux)])
@@ -117,8 +117,8 @@ class lightcurve:
 		if plot==True:
 
 			plt.figure()
-			plt.hist(self.flux_LC_data/np.mean(self.flux_LC_data), density=True, bins=5)
-			plt.plot(np.linspace(0, 3*max(bin_center), 100), scipy.stats.skewnorm.pdf(np.linspace(0, 3*max(bin_center), 100),*popt))
+			plt.hist(self.flux_LC_data/np.mean(self.flux_LC_data), density=True, bins=round(len(self.flux_LC_data)/2))
+			plt.plot(np.linspace(0, 3*max(bin_center), 300), scipy.stats.skewnorm.pdf(np.linspace(0, 3*max(bin_center), 300),*popt))
 			plt.show()
 
 		return popt
