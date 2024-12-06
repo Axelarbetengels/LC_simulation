@@ -2,14 +2,7 @@ import numpy as np
 from scipy.stats.stats import pearsonr
 
 
-def pearson_coeff(LC1, LC2, delta_t):
-	
-
-	t_LC1 = LC1[0]
-	f_LC1 = LC1[1]
-
-	t_LC2 = LC2[0]
-	f_LC2 = LC2[1]
+def pearson_coeff(t_LC1, t_LC2, f_LC1, f_LC2, delta_t):
 
 	min_delta_LC1 = np.min(abs(t_LC1[1:]-t_LC1[:-1]))
 	min_delta_LC2 = np.min(abs(t_LC2[1:]-t_LC2[:-1]))
@@ -59,4 +52,29 @@ def pearson_coeff(LC1, LC2, delta_t):
 
 
 	return r
+
+
+def calc_pearson_LC(LC1, LC2, delta_t):
+
+        N_LC_simulated = len(LC1[1])
+
+        if (len(LC1[1])!=len(LC2[1])):
+                return 'ERROR, Number of LC simulated not equal'
+
+
+        t_LC1 = LC1[0]
+        f_LC1 = LC1[1]
+
+        t_LC2 = LC2[0]
+        f_LC2 = LC2[1]
+
+        pear_i = []
+        for i in range(N_LC_simulated):
+
+                pear_i.append(pearson_coeff(t_LC1, t_LC2, f_LC1[i], f_LC2[i], delta_t))
+
+                print ('Pearson of LC pair ', i+1, ' out of' , N_LC_simulated, ' computed!')
+
+        return (pear_i)
+
 
